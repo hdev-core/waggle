@@ -1,0 +1,51 @@
+import type { FypPost } from './types'
+
+// Bundled sample feed mirroring HAF_FYP's bridge.get_ranked_posts + nested fyp
+// shape. Used until the live endpoint/CORS is wired (VITE_USE_MOCK=false).
+export const MOCK_FEED: FypPost[] = [
+  {
+    author: 'alice',
+    permlink: 'sunrise-over-the-andes',
+    title: 'Sunrise over the Andes — a 14-day trek',
+    body: '![cover](https://images.hive.blog/p/cover.png)\n\nWe started before dawn at 4,200m. The light came up gold over the ridgeline and the whole valley lit up at once...',
+    category: 'hive-163772',
+    created: '2026-06-30T05:12:00',
+    json_metadata: { image: ['https://images.hive.blog/p/cover.png'], tags: ['travel', 'photography'] },
+    pending_payout: 42.18,
+    author_reputation: 7100000000000,
+    children: 23,
+    community: 'hive-163772',
+    community_title: 'Worldmappin',
+    fyp: { rank: 1, final_score: 0.91, score_relevance: 0.88, score_recency: 0.95, score_engagement: 0.74, score_credibility: 0.62, community_boost_applied: true, source: 'global' },
+  },
+  {
+    author: 'devbob',
+    permlink: 'shipping-haf-apps-in-2026',
+    title: 'What I learned shipping three HAF apps this year',
+    body: 'No cover image here — just hard-won notes.\n\n## 1. Push-based indexing changes everything\n\nThe sql_serializer pushing into Postgres means your app is just SQL + a thin API...',
+    category: 'hive-139531',
+    created: '2026-06-29T18:40:00',
+    json_metadata: { tags: ['hive', 'development', 'haf'] },
+    pending_payout: 18.5,
+    author_reputation: 6600000000000,
+    children: 11,
+    community: 'hive-139531',
+    community_title: 'Programming & Dev',
+    fyp: { rank: 2, final_score: 0.83, score_relevance: 0.79, score_recency: 0.81, score_engagement: 0.66, score_credibility: 0.71, source: 'global' },
+  },
+  {
+    author: 'chefcarla',
+    permlink: 'three-ingredient-focaccia',
+    title: 'Three-ingredient focaccia that actually works',
+    body: '![focaccia](https://images.hive.blog/p/focaccia.jpg)\n\nFlour, water, salt, and time. That is the whole secret. Here is the no-knead method I use every weekend...',
+    category: 'hive-120586',
+    created: '2026-06-30T11:02:00',
+    json_metadata: { image: ['https://images.hive.blog/p/focaccia.jpg'], tags: ['food', 'recipe'] },
+    pending_payout: 9.34,
+    author_reputation: 5800000000000,
+    children: 7,
+    community: 'hive-120586',
+    community_title: 'Foodies Bee Hive',
+    fyp: { rank: 3, final_score: 0.77, score_relevance: 0.72, score_recency: 0.9, score_engagement: 0.55, score_credibility: 0.5, source: 'global' },
+  },
+]
