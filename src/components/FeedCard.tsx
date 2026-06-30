@@ -3,6 +3,7 @@ import type { FypPost } from '../lib/types'
 import { excerpt, payoutOf, displayReputation, parseMeta } from '../lib/post'
 import { useSession } from '../lib/session'
 import { Hero } from './Hero'
+import { CommentSheet } from './CommentSheet'
 
 function Action({ icon, label, count, active, busy, onClick }: {
   icon: string; label: string; count?: number; active?: boolean; busy?: boolean; onClick?: () => void
@@ -85,7 +86,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
 
       <div className="card__rail">
         <Action icon={liked ? '♥' : '♡'} label="Upvote" count={baseVotes + (liked ? 1 : 0)} active={liked} busy={busy === 'vote'} onClick={onLike} />
-        <Action icon="💬" label="Comment" count={post.children} onClick={() => (signer ? setShowComment(true) : onNeedAuth())} />
+        <Action icon="💬" label="Comment" count={post.children} onClick={() => setShowComment(true)} />
         <Action icon="🔁" label="Reblog" active={reblogged} busy={busy === 'reblog'} onClick={onReblog} />
         <Action icon={followed ? '✓' : '＋'} label="Follow author" active={followed} busy={busy === 'follow'} onClick={onFollow} />
         <Action icon="？" label="Why this post" onClick={() => setShowWhy((v) => !v)} />
@@ -96,11 +97,12 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
       {showComment && (
         <CommentSheet
           author={post.author}
+          permlink={post.permlink}
+          childrenCount={post.children ?? 0}
           onClose={() => setShowComment(false)}
-          onSubmit={async (body) => {
-            await act('comment', () => signer!.comment(post.author, post.permlink, body), () => {}, () => {})
-            setShowComment(false)
-          }}
+          onSubmit={(body) =>
+            act('comment', () => signer!.comment(post.author, post.permlink, body), () => {}, () => {})
+          }
         />
       )}
 
@@ -118,22 +120,6 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
         </div>
       )}
     </section>
-  )
-}
-
-function CommentSheet({ author, onClose, onSubmit }: { author: string; onClose: () => void; onSubmit: (body: string) => void }) {
-  const [body, setBody] = useState('')
-  return (
-    <div className="why" onClick={onClose}>
-      <div className="why__sheet" onClick={(e) => e.stopPropagation()}>
-        <h3>Reply to @{author}</h3>
-        <textarea className="composer" rows={4} placeholder="Write a comment…" value={body} onChange={(e) => setBody(e.target.value)} />
-        <div className="composer__row">
-          <button className="btn btn--ghost" onClick={onClose}>Cancel</button>
-          <button className="btn" disabled={!body.trim()} onClick={() => onSubmit(body.trim())}>Post</button>
-        </div>
-      </div>
-    </div>
   )
 }
 
