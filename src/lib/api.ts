@@ -21,26 +21,30 @@ async function getJson(path: string): Promise<FypPost[]> {
   return Array.isArray(data) ? data : (data.posts ?? data.result ?? [])
 }
 
-export async function fetchGlobalFeed(limit = 20): Promise<FypPost[]> {
-  if (USE_MOCK) return MOCK_FEED
+// HAF_FYP pages with page (1-based) + page-size (capped 50 server-side) over the
+// cached top-~200 ranked posts. A short page (< pageSize) means end of cache.
+export async function fetchGlobalFeed(page = 1, pageSize = 20): Promise<FypPost[]> {
+  if (USE_MOCK) return page === 1 ? MOCK_FEED : []
   try {
-    return await getJson(`/v1/fyp/global?limit=${limit}`)
+    return await getJson(`/v1/fyp/global?page=${page}&page-size=${pageSize}`)
   } catch (e) {
     console.warn('global feed failed, using mock', e)
-    return MOCK_FEED
+    return page === 1 ? MOCK_FEED : []
   }
 }
 
 export async function fetchPersonalizedFeed(
   username: string,
-  limit = 20,
+  page = 1,
+  pageSize = 20,
 ): Promise<FypPost[]> {
-  if (USE_MOCK)
-    return MOCK_FEED.map((p) => ({ ...p, fyp: { ...p.fyp!, source: 'personalized' } }))
+  const asPersonalized = (ps: FypPost[]) =>
+    ps.map((p) => ({ ...p, fyp: { ...p.fyp!, source: 'personalized' as const } }))
+  if (USE_MOCK) return page === 1 ? asPersonalized(MOCK_FEED) : []
   try {
-    return await getJson(`/v1/fyp/feed/${encodeURIComponent(username)}?limit=${limit}`)
+    return await getJson(`/v1/fyp/feed/${encodeURIComponent(username)}?page=${page}&page-size=${pageSize}`)
   } catch (e) {
     console.warn('personalized feed failed, using mock', e)
-    return MOCK_FEED.map((p) => ({ ...p, fyp: { ...p.fyp!, source: 'personalized' } }))
+    return page === 1 ? asPersonalized(MOCK_FEED) : []
   }
 }
