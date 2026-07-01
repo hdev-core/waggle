@@ -105,6 +105,17 @@ export function payoutOf(post: FypPost): number {
   return Number(post.payout ?? post.pending_payout ?? 0)
 }
 
+// A content gate reason, if the post should be blurred/collapsed by default.
+// Honors Hive's nsfw tag and the bridge's moderation signals (mutes/blacklists,
+// gray/hide flags). Returns null when the post is safe to show outright.
+export function contentWarning(post: FypPost): { label: string } | null {
+  const tags = metaTags(post)
+  if (tags.includes('nsfw') || tags.includes('nsfl')) return { label: 'Sensitive content (NSFW)' }
+  if (post.stats?.hide || (post.blacklists && post.blacklists.length > 0)) return { label: 'Hidden by moderation' }
+  if (post.stats?.gray) return { label: 'Low-rated content' }
+  return null
+}
+
 // tags is an array on most apps but occasionally a bare/space-separated string.
 export function metaTags(post: FypPost): string[] {
   const t = parseMeta(post).tags

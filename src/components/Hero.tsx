@@ -9,13 +9,13 @@ import { useInView } from '../lib/useInView'
 //  2. Video facade: show a poster + play button; only mount the <iframe>/<video>
 //     on tap. Avoids iframe-autoplay blocks and embedding-disabled errors that
 //     made some YouTube posts fail.
-export function Hero({ post, title }: { post: FypPost; title: string }) {
+export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const [playing, setPlaying] = useState(false)
   const hero = extractHero(post)
 
   return (
-    <div className="card__media" ref={ref}>
+    <div className={`card__media ${blurred ? 'card__media--blur' : ''}`} ref={ref}>
       {/* gradient base — also the placeholder before in-view and for text posts */}
       <div className="card__textbg" aria-hidden={hero.kind !== 'none'}>
         {hero.kind === 'none' && <h1 className="card__textbg-title">{title}</h1>}

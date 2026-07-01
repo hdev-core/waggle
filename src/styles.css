@@ -76,6 +76,25 @@ body {
 }
 @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.1); opacity: 0; } }
 
+/* Content gate (NSFW / muted / low-rated) */
+.card__media--blur .card__img,
+.card__media--blur .card__video,
+.card__media--blur .card__playbtn { filter: blur(34px); transform: scale(1.1); }
+.gate {
+  position: absolute; inset: 0; z-index: 7; display: grid; place-content: center;
+  justify-items: center; gap: 8px; text-align: center; padding: 24px;
+  background: rgba(0,0,0,0.35);
+}
+.gate__icon { font-size: 44px; }
+.gate__label { font-size: 18px; }
+.gate__sub { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+
+/* Mobile sign-in banner */
+.login__banner {
+  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 14px;
+  font-size: 13px; line-height: 1.45; color: var(--fg); margin-bottom: 6px;
+}
+
 /* Overlay text */
 .card__overlay {
   position: absolute; left: 0; right: 64px; bottom: 0; z-index: 5;

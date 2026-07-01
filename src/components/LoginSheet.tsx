@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useSession } from '../lib/session'
+import { isMobileNoKeychain } from '../lib/platform'
 
 // Lazy auth sheet: Keychain sign-in (enables on-chain actions) or a read-only
 // username (personalized feed only, no signing). Also hosts the adjustable
 // vote-weight control (default 100%).
 export function LoginSheet({ onClose }: { onClose: () => void }) {
   const { hasKeychain, loginKeychain, setReadOnlyUser, voteWeight, setVoteWeight } = useSession()
+  const mobile = isMobileNoKeychain()
   const [name, setName] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -26,7 +28,12 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
   return (
     <div className="why" onClick={onClose}>
       <div className="why__sheet" onClick={(e) => e.stopPropagation()}>
-        <h3>Sign in</h3>
+        <h3>{mobile ? 'Browse Waggle' : 'Sign in'}</h3>
+        {mobile && (
+          <p className="login__banner">
+            📱 Signing in with Hive Keychain needs a desktop browser. Mobile sign-in (HiveAuth) is coming soon — for now, enter your username to browse your For You feed.
+          </p>
+        )}
         <input
           className="login__input login__input--full"
           placeholder="hive username"
@@ -36,39 +43,45 @@ export function LoginSheet({ onClose }: { onClose: () => void }) {
         />
         {err && <p className="state__err">{err}</p>}
 
-        <button className="btn btn--full" disabled={busy || !name.trim()} onClick={keychain}>
-          {busy ? 'Check Keychain…' : 'Sign in with Hive Keychain'}
-        </button>
-        {!hasKeychain && (
-          <p className="login__hint">
-            Keychain not detected. Install the{' '}
-            <a href="https://hive-keychain.com" target="_blank" rel="noreferrer">browser extension</a>, or continue read-only.
-          </p>
+        {!mobile && (
+          <>
+            <button className="btn btn--full" disabled={busy || !name.trim()} onClick={keychain}>
+              {busy ? 'Check Keychain…' : 'Sign in with Hive Keychain'}
+            </button>
+            {!hasKeychain && (
+              <p className="login__hint">
+                Keychain not detected. Install the{' '}
+                <a href="https://hive-keychain.com" target="_blank" rel="noreferrer">browser extension</a>, or continue read-only.
+              </p>
+            )}
+          </>
         )}
         <button
-          className="btn btn--ghost btn--full"
+          className={`btn btn--full ${mobile ? '' : 'btn--ghost'}`}
           disabled={!name.trim()}
           onClick={() => {
             setReadOnlyUser(name)
             onClose()
           }}
         >
-          Continue read-only (browse my feed)
+          {mobile ? 'Browse my For You feed' : 'Continue read-only (browse my feed)'}
         </button>
 
-        <div className="setting">
-          <label className="setting__label">
-            Default upvote weight <strong>{voteWeight}%</strong>
-          </label>
-          <input
-            className="setting__range"
-            type="range"
-            min={1}
-            max={100}
-            value={voteWeight}
-            onChange={(e) => setVoteWeight(Number(e.target.value))}
-          />
-        </div>
+        {!mobile && (
+          <div className="setting">
+            <label className="setting__label">
+              Default upvote weight <strong>{voteWeight}%</strong>
+            </label>
+            <input
+              className="setting__range"
+              type="range"
+              min={1}
+              max={100}
+              value={voteWeight}
+              onChange={(e) => setVoteWeight(Number(e.target.value))}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

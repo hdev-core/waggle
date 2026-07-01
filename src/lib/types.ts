@@ -41,6 +41,9 @@ export interface FypPost {
   community_title?: string
   url?: string
   active_votes?: { voter: string; rshares: number }[]
+  // Moderation signals from the Hivemind bridge (observer-dependent).
+  blacklists?: string[]
+  stats?: { gray?: boolean; hide?: boolean; flag_weight?: number }
   fyp?: FypSignals
 }
 

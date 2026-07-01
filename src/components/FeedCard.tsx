@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { FypPost } from '../lib/types'
-import { excerpt, payoutOf, displayReputation, metaTags } from '../lib/post'
+import { excerpt, payoutOf, displayReputation, metaTags, contentWarning } from '../lib/post'
 import { usePostActions } from '../lib/usePostActions'
 import { Hero } from './Hero'
 import { CommentSheet } from './CommentSheet'
@@ -36,15 +36,30 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
   const [showComment, setShowComment] = useState(false)
   const [showReader, setShowReader] = useState(false)
   const [showVote, setShowVote] = useState(false)
+  const [revealed, setRevealed] = useState(false)
 
   // Rail heart opens the % picker (or prompts login); double-tap quick-votes.
   const openVote = () => (signer ? setShowVote(true) : onNeedAuth())
 
-  return (
-    <section className="card" onDoubleClick={onLike}>
-      <Hero post={post} title={post.title} />
-      {liked && <div className="card__heart">♥</div>}
+  // Blur + collapse NSFW / muted / low-rated posts until the user opts in.
+  const warning = contentWarning(post)
+  const gated = !!warning && !revealed
 
+  return (
+    <section className="card" onDoubleClick={gated ? undefined : onLike}>
+      <Hero post={post} title={post.title} blurred={gated} />
+      {liked && !gated && <div className="card__heart">♥</div>}
+
+      {gated && (
+        <div className="gate">
+          <div className="gate__icon">🚫</div>
+          <h3 className="gate__label">{warning!.label}</h3>
+          <p className="gate__sub">@{post.author}</p>
+          <button className="btn" onClick={() => setRevealed(true)}>View anyway</button>
+        </div>
+      )}
+
+      {!gated && (<>
       <div className="card__overlay">
         <div className="card__meta">
           {post.community_title && <span className="chip">{post.community_title}</span>}
@@ -69,6 +84,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
         <Action icon={<IconFollow filled={followed} />} label="Follow author" active={followed} busy={busy === 'follow'} onClick={onFollow} />
         <Action icon={<IconInfo />} label="Why this post" onClick={() => setShowWhy((v) => !v)} />
       </div>
+      </>)}
 
       {toast && <div className="toast">{toast}</div>}
 
