@@ -1,18 +1,46 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FypPost } from '../lib/types'
 import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
 
-// Renders one post's hero media with two perf safeguards:
+// Renders one post's hero media with TikTok-style playback:
 //  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away
 //     (useInView), so we never decode 20 full-screen images at once.
-//  2. Video facade: show a poster + play button; only mount the <iframe>/<video>
-//     on tap. Avoids iframe-autoplay blocks and embedding-disabled errors that
-//     made some YouTube posts fail.
+//  2. Auto-play on active: when a video slide is the centered one (>=60% in
+//     view) it auto-plays muted (browser autoplay policy requires muted). It
+//     unmounts as soon as it scrolls away, so only one video ever plays.
+//  3. Tap to toggle sound; a poster + play button remains as a manual fallback.
 export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
   const { ref, inView } = useInView<HTMLDivElement>()
-  const [playing, setPlaying] = useState(false)
+  const [active, setActive] = useState(false)
+  const [muted, setMuted] = useState(true)
   const hero = extractHero(post)
+  const isVideo = hero.kind === 'video'
+
+  // Track whether this slide is the centered/active one so its video auto-plays.
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !isVideo) return
+    const io = new IntersectionObserver(
+      ([entry]) => setActive(entry.intersectionRatio >= 0.6),
+      { threshold: [0, 0.6, 1] },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, isVideo])
+
+  // Reset to muted each time playback (re)starts, so scrolling back never blasts
+  // audio and autoplay stays within policy.
+  useEffect(() => {
+    if (!active) setMuted(true)
+  }, [active])
+
+  const playing = isVideo && active
+
+  const iframeSrc = (url: string) => {
+    const sep = url.includes('?') ? '&' : '?'
+    return `${url}${sep}autoplay=1&mute=${muted ? 1 : 0}&muted=${muted ? 1 : 0}&playsinline=1`
+  }
 
   return (
     <div className={`card__media ${blurred ? 'card__media--blur' : ''}`} ref={ref}>
@@ -25,24 +53,37 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         <img className="card__img" src={hero.src} alt="" decoding="async" loading="lazy" />
       )}
 
-      {inView && hero.kind === 'video' && !playing && (
-        <button className="card__playbtn" onClick={() => setPlaying(true)} aria-label="Play video">
+      {/* Poster shown until this slide is active (or as a fallback if blocked). */}
+      {inView && isVideo && !playing && (
+        <div className="card__playbtn" aria-hidden>
           {hero.poster && <img className="card__img" src={hero.poster} alt="" decoding="async" />}
           <span className="card__playicon">▶</span>
-        </button>
+        </div>
       )}
 
-      {playing && hero.kind === 'video' && hero.embedUrl && (
+      {playing && hero.embedUrl && (
         <iframe
+          key={muted ? 'm' : 'u'}
           className="card__video"
-          src={`${hero.embedUrl}${hero.embedUrl.includes('?') ? '&' : '?'}autoplay=1&playsinline=1`}
+          src={iframeSrc(hero.embedUrl)}
           title={title}
           allow="autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
         />
       )}
-      {playing && hero.kind === 'video' && hero.src && (
-        <video className="card__video" src={hero.src} controls autoPlay playsInline />
+      {playing && hero.src && (
+        <video className="card__video" src={hero.src} autoPlay playsInline muted={muted} loop controls={false} />
+      )}
+
+      {/* Tap-to-unmute pill while a video is auto-playing muted. */}
+      {playing && (
+        <button
+          className="card__mute"
+          onClick={() => setMuted((m) => !m)}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+        >
+          {muted ? '🔇 Tap for sound' : '🔊'}
+        </button>
       )}
 
       <div className="card__scrim" />
