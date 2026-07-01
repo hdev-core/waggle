@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.VITE_FYP_PROXY_TARGET || 'https://testapi.hive.blog'
   // GitHub Pages project sites serve under /<repo>/. The Actions workflow sets
-  // PAGES_BASE=/hivefy/; a custom domain uses '/'. Defaults to '/' for local dev.
+  // PAGES_BASE=/waggle/; a custom domain uses '/'. Defaults to '/' for local dev.
   const base = process.env.PAGES_BASE || '/'
   return {
     base,

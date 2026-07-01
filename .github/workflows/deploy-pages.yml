@@ -22,7 +22,7 @@ jobs:
     env:
       # Project site serves under /<repo>/. Change to '/' if you attach a custom
       # domain (and set the CNAME in repo Settings → Pages).
-      PAGES_BASE: /hivefy/
+      PAGES_BASE: /waggle/
       # Production API config. Override in repo Settings → Secrets and variables
       # → Actions (Variables) if these ever move.
       VITE_USE_MOCK: 'false'
