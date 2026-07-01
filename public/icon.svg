@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0b0b12"/>
+  <!-- honeycomb hex = the hive -->
+  <path d="M256 104 L392 183 V341 L256 420 L120 341 V183 Z"
+        fill="none" stroke="#ff3b6b" stroke-width="26" stroke-linejoin="round"/>
+  <!-- waggle path: the bee's figure-eight dance, pointing to the good stuff -->
+  <path d="M196 300 C196 250 256 250 256 210 C256 250 316 250 316 300 C316 336 256 344 256 300 C256 344 196 336 196 300 Z"
+        fill="#ff3b6b"/>
+</svg>
