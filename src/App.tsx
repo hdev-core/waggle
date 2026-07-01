@@ -41,6 +41,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <span className="brand">Waggle</span>
         <button className={`tab ${kind === 'foryou' ? 'tab--on' : ''}`} onClick={chooseForYou}>
           For You
         </button>

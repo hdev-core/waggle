@@ -31,6 +31,9 @@ body {
   font-size: 17px; font-weight: 700; cursor: pointer; padding: 4px 2px;
 }
 .tab--on { color: var(--fg); border-bottom: 2px solid var(--fg); }
+.brand { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-weight: 800; font-size: 18px; letter-spacing: -0.3px; color: var(--fg); }
+.brand::before { content: "🐝 "; }
+@media (max-width: 460px) { .brand { display: none; } }
 
 /* Pager */
 .pager {
