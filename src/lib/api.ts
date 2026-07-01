@@ -1,5 +1,18 @@
 import type { FypPost } from './types'
 import { MOCK_FEED } from './mock'
+import { SAMPLE_VIDEOS } from './sampleVideos'
+
+// During the beta, seed a few real, verified-streaming 3Speak videos at the top
+// of page 1 so autoplay/HLS can be exercised — the live feed's own "video" posts
+// are synthetic testapi data with no real file. Disable with VITE_SAMPLE_VIDEOS=false.
+const SHOW_SAMPLE_VIDEOS = (import.meta.env.VITE_SAMPLE_VIDEOS ?? 'true') !== 'false'
+
+function withSamples(posts: FypPost[], page: number, source: 'personalized' | 'global'): FypPost[] {
+  if (!SHOW_SAMPLE_VIDEOS || page !== 1) return posts
+  const samples = SAMPLE_VIDEOS.map((p) => ({ ...p, fyp: { ...p.fyp!, source } }))
+  const seen = new Set(samples.map((p) => `${p.author}/${p.permlink}`))
+  return [...samples, ...posts.filter((p) => !seen.has(`${p.author}/${p.permlink}`))]
+}
 
 // User's computed interest profile — drives cold-start detection.
 export interface FypProfile {
@@ -38,12 +51,12 @@ async function getJson(path: string): Promise<FypPost[]> {
 // HAF_FYP pages with page (1-based) + page-size (capped 50 server-side) over the
 // cached top-~200 ranked posts. A short page (< pageSize) means end of cache.
 export async function fetchGlobalFeed(page = 1, pageSize = 20): Promise<FypPost[]> {
-  if (USE_MOCK) return page === 1 ? MOCK_FEED : []
+  if (USE_MOCK) return withSamples(page === 1 ? MOCK_FEED : [], page, 'global')
   try {
-    return await getJson(`/v1/fyp/global?page=${page}&page-size=${pageSize}`)
+    return withSamples(await getJson(`/v1/fyp/global?page=${page}&page-size=${pageSize}`), page, 'global')
   } catch (e) {
     console.warn('global feed failed, using mock', e)
-    return page === 1 ? MOCK_FEED : []
+    return withSamples(page === 1 ? MOCK_FEED : [], page, 'global')
   }
 }
 
@@ -54,12 +67,13 @@ export async function fetchPersonalizedFeed(
 ): Promise<FypPost[]> {
   const asPersonalized = (ps: FypPost[]) =>
     ps.map((p) => ({ ...p, fyp: { ...p.fyp!, source: 'personalized' as const } }))
-  if (USE_MOCK) return page === 1 ? asPersonalized(MOCK_FEED) : []
+  if (USE_MOCK) return withSamples(page === 1 ? asPersonalized(MOCK_FEED) : [], page, 'personalized')
   try {
-    return await getJson(`/v1/fyp/feed/${encodeURIComponent(username)}?page=${page}&page-size=${pageSize}`)
+    const live = await getJson(`/v1/fyp/feed/${encodeURIComponent(username)}?page=${page}&page-size=${pageSize}`)
+    return withSamples(live, page, 'personalized')
   } catch (e) {
     console.warn('personalized feed failed, using mock', e)
-    return page === 1 ? asPersonalized(MOCK_FEED) : []
+    return withSamples(page === 1 ? asPersonalized(MOCK_FEED) : [], page, 'personalized')
   }
 }
 

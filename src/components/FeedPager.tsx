@@ -33,7 +33,9 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
         ? fetchPersonalizedFeed(username, pageParam.page, PAGE_SIZE)
         : fetchGlobalFeed(pageParam.page, PAGE_SIZE),
     getNextPageParam: (lastPage, _all, lastParam): PageParam | undefined => {
-      if (lastPage.length === PAGE_SIZE) return { mode: lastParam.mode, page: lastParam.page + 1 }
+      // >= (not ==): page 1 may be padded with injected sample videos, so a full
+      // page can exceed PAGE_SIZE. A short page still signals end-of-source.
+      if (lastPage.length >= PAGE_SIZE) return { mode: lastParam.mode, page: lastParam.page + 1 }
       // Short page = end of this source. Personalized falls through to global.
       if (lastParam.mode === 'foryou') return { mode: 'global', page: 1 }
       return undefined
