@@ -42,12 +42,14 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <span className="brand">Waggle</span>
-        <button className={`tab ${kind === 'foryou' ? 'tab--on' : ''}`} onClick={chooseForYou}>
-          For You
-        </button>
-        <button className={`tab ${kind === 'discover' ? 'tab--on' : ''}`} onClick={() => setKind('discover')}>
-          Discover
-        </button>
+        <div className="tabs">
+          <button className={`tab ${kind === 'foryou' ? 'tab--on' : ''}`} onClick={chooseForYou}>
+            For You
+          </button>
+          <button className={`tab ${kind === 'discover' ? 'tab--on' : ''}`} onClick={() => setKind('discover')}>
+            Discover
+          </button>
+        </div>
         <button className="topbar__acct" onClick={() => (username ? logout() : setShowLogin(true))}>
           {username ? `@${username}${signer ? '' : ' (read-only)'}` : 'Sign in'}
         </button>
