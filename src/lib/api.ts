@@ -15,6 +15,12 @@ export interface FypProfile {
 const BASE =
   import.meta.env.VITE_FYP_BASE ?? 'https://testapi.hivescan.info/haf-fyp-api'
 
+// The FastAPI overlay (write ops: interests, admin) is a SEPARATE service from
+// PostgREST and is exposed under a different path (/haf-fyp-admin, not
+// /haf-fyp-api). Feeds/profile are PostgREST (BASE); interests is FastAPI.
+const ADMIN_BASE =
+  import.meta.env.VITE_FYP_ADMIN_BASE ?? 'https://testapi.hivescan.info/haf-fyp-admin'
+
 // Live by default; set VITE_USE_MOCK=true to render the bundled sample feed
 // offline. We also fall back to mock automatically if a live fetch throws.
 const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'false') === 'true'
@@ -73,8 +79,9 @@ export async function fetchProfile(username: string): Promise<FypProfile | null>
 }
 
 // Declare cold-start interests (community_ids). Rate-limited 10/min server-side.
+// Goes to the FastAPI overlay (ADMIN_BASE), not PostgREST.
 export async function postInterests(username: string, communities: number[]): Promise<void> {
-  const res = await fetch(`${BASE}/v1/fyp/interests`, {
+  const res = await fetch(`${ADMIN_BASE}/v1/fyp/interests`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, communities }),
