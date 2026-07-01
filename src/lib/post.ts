@@ -36,7 +36,9 @@ export interface HeroMedia {
 const FIRST_MD_IMG = /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i
 const FIRST_HTML_IMG = /<img[^>]+src=["'](https?:\/\/[^"']+)["']/i
 const YT_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/i
-const THREESPEAK_RE = /3speak\.tv\/watch\?v=([\w.-]+\/[\w-]+)/i
+// 3Speak posts embed as 3speak.tv/watch?v=, or play.3speak.tv/embed?v=, or
+// 3speak.tv/embed?v= — id is author/permlink.
+const THREESPEAK_RE = /(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([\w.-]+\/[\w-]+)/i
 const MP4_RE = /(https?:\/\/[^\s)"']+\.mp4)/i
 
 // Pick the best hero for a card: explicit json_metadata image, then any embed
@@ -44,6 +46,11 @@ const MP4_RE = /(https?:\/\/[^\s)"']+\.mp4)/i
 export function extractHero(post: FypPost): HeroMedia {
   const meta = parseMeta(post)
   const body = post.body || ''
+  // json_metadata.image is inconsistent across Hive apps: array, bare string, or
+  // absent. Normalise; the first image doubles as a video poster (thumbnail).
+  const imgs = Array.isArray(meta.image) ? meta.image : meta.image ? [meta.image as string] : []
+  const metaImg = imgs.find(Boolean)
+  const poster = metaImg ? proxiedImage(metaImg) : undefined
 
   const yt = body.match(YT_RE)
   if (yt) {
@@ -55,15 +62,11 @@ export function extractHero(post: FypPost): HeroMedia {
   }
   const ts = body.match(THREESPEAK_RE)
   if (ts) {
-    return { kind: 'video', embedUrl: `https://3speak.tv/embed?v=${ts[1]}` }
+    return { kind: 'video', embedUrl: `https://3speak.tv/embed?v=${ts[1]}`, poster }
   }
   const mp4 = body.match(MP4_RE)
-  if (mp4) return { kind: 'video', src: mp4[1] }
+  if (mp4) return { kind: 'video', src: mp4[1], poster }
 
-  // json_metadata.image is inconsistent across Hive apps: array, or a bare
-  // string, or absent. Normalise to an array before searching.
-  const imgs = Array.isArray(meta.image) ? meta.image : meta.image ? [meta.image as string] : []
-  const metaImg = imgs.find(Boolean)
   if (metaImg) return { kind: 'image', src: proxiedImage(metaImg) }
 
   const mdImg = body.match(FIRST_MD_IMG)?.[1]

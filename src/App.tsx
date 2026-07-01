@@ -22,14 +22,18 @@ export function App() {
   })
   const coldStart = !!username && profile != null && !profile.has_vector
   const seenKey = `hivefy.pickerSeen.${username}`
+  const savedKey = `hivefy.interestsSaved.${username}`
 
-  // Auto-offer the picker once per user (persisted), then leave a CTA banner.
+  // Auto-offer the picker once per user (persisted), then leave a CTA banner —
+  // unless the user already saved interests (personalization is just pending a
+  // ranker cycle, so don't keep nagging while has_vector is still false).
   useEffect(() => {
-    if (coldStart && !localStorage.getItem(seenKey)) setShowPicker(true)
-  }, [coldStart, seenKey])
+    if (coldStart && !localStorage.getItem(seenKey) && !localStorage.getItem(savedKey)) setShowPicker(true)
+  }, [coldStart, seenKey, savedKey])
 
-  function dismissPicker() {
+  function dismissPicker(saved = false) {
     localStorage.setItem(seenKey, '1')
+    if (saved) localStorage.setItem(savedKey, '1')
     setShowPicker(false)
   }
 
@@ -57,8 +61,8 @@ export function App() {
 
       <FeedPager kind={kind} username={username} onNeedAuth={() => setShowLogin(true)} />
 
-      {/* Cold-start nudge on the For You tab if the picker was skipped */}
-      {kind === 'foryou' && coldStart && !showPicker && (
+      {/* Cold-start nudge on the For You tab — only if skipped, not after saving */}
+      {kind === 'foryou' && coldStart && !showPicker && !localStorage.getItem(savedKey) && (
         <button className="cta-banner" onClick={() => setShowPicker(true)}>
           ✨ Personalize your feed — pick your interests
         </button>
@@ -69,9 +73,9 @@ export function App() {
       {showPicker && username && (
         <InterestPicker
           username={username}
-          onClose={dismissPicker}
+          onClose={() => dismissPicker(false)}
           onSaved={() => {
-            dismissPicker()
+            dismissPicker(true)
             setKind('foryou')
             qc.invalidateQueries({ queryKey: ['profile', username] })
             qc.invalidateQueries({ queryKey: ['feed'] })
