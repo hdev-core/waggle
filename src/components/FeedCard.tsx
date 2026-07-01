@@ -1,68 +1,39 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { FypPost } from '../lib/types'
 import { excerpt, payoutOf, displayReputation, parseMeta } from '../lib/post'
-import { useSession } from '../lib/session'
+import { usePostActions } from '../lib/usePostActions'
 import { Hero } from './Hero'
 import { CommentSheet } from './CommentSheet'
+import { PostReader } from './PostReader'
+import { IconHeart, IconComment, IconReblog, IconFollow, IconInfo } from './icons'
+
+function formatCount(n?: number): string | null {
+  if (n == null) return null
+  if (n < 1000) return String(n)
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`
+  return `${(n / 1_000_000).toFixed(1)}m`
+}
 
 function Action({ icon, label, count, active, busy, onClick }: {
-  icon: string; label: string; count?: number; active?: boolean; busy?: boolean; onClick?: () => void
+  icon: ReactNode; label: string; count?: number; active?: boolean; busy?: boolean; onClick?: () => void
 }) {
   return (
-    <button className={`action ${active ? 'action--on' : ''}`} onClick={onClick} aria-label={label} disabled={busy}>
-      <span className="action__icon">{busy ? '…' : icon}</span>
-      {count != null && <span className="action__count">{count}</span>}
+    <button className={`action ${active ? 'action--on' : ''} ${busy ? 'action--busy' : ''}`} onClick={onClick} aria-label={label} disabled={busy}>
+      <span className="action__icon">{icon}</span>
+      {count != null && <span className="action__count">{formatCount(count)}</span>}
     </button>
   )
 }
 
-type Busy = null | 'vote' | 'reblog' | 'follow' | 'comment'
-
 export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () => void }) {
-  const { signer, voteWeight } = useSession()
   const meta = parseMeta(post)
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
 
-  const [liked, setLiked] = useState(false)
-  const [reblogged, setReblogged] = useState(false)
-  const [followed, setFollowed] = useState(false)
-  const [busy, setBusy] = useState<Busy>(null)
+  const { liked, reblogged, followed, busy, toast, onLike, onReblog, onFollow, submitComment } = usePostActions(post, onNeedAuth)
   const [showWhy, setShowWhy] = useState(false)
   const [showComment, setShowComment] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
-
-  function flash(msg: string) {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 2200)
-  }
-
-  // Optimistic action wrapper: flips UI immediately, rolls back on failure.
-  async function act(kind: Exclude<Busy, null>, run: () => Promise<void>, optimistic: () => void, rollback: () => void) {
-    if (!signer) return onNeedAuth()
-    setBusy(kind)
-    optimistic()
-    try {
-      await run()
-      flash(`${kind === 'vote' ? 'Upvoted' : kind === 'reblog' ? 'Reblogged' : kind === 'follow' ? 'Following' : 'Commented'} ✓`)
-    } catch (e) {
-      rollback()
-      flash((e as Error).message)
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const onLike = () =>
-    liked
-      ? undefined // M2: no un-vote yet (vote weight 0 = removal, added later)
-      : act('vote', () => signer!.vote(post.author, post.permlink, voteWeight), () => setLiked(true), () => setLiked(false))
-
-  const onReblog = () =>
-    act('reblog', () => signer!.reblog(post.author, post.permlink), () => setReblogged(true), () => setReblogged(false))
-
-  const onFollow = () =>
-    act('follow', () => signer!.follow(post.author), () => setFollowed(true), () => setFollowed(false))
+  const [showReader, setShowReader] = useState(false)
 
   return (
     <section className="card" onDoubleClick={onLike}>
@@ -74,8 +45,10 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
           {post.community_title && <span className="chip">{post.community_title}</span>}
           {post.fyp?.source && <span className={`chip chip--${post.fyp.source}`}>{post.fyp.source === 'personalized' ? 'For You' : 'Discover'}</span>}
         </div>
-        <h2 className="card__title">{post.title}</h2>
-        <p className="card__excerpt">{excerpt(post.body)}</p>
+        <h2 className="card__title" onClick={() => setShowReader(true)}>{post.title}</h2>
+        <p className="card__excerpt" onClick={() => setShowReader(true)}>
+          {excerpt(post.body)} <span className="card__more">Read more</span>
+        </p>
         <div className="card__author">
           <span className="card__handle">@{post.author}</span>
           {rep != null && <span className="card__rep">({rep})</span>}
@@ -85,14 +58,16 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
       </div>
 
       <div className="card__rail">
-        <Action icon={liked ? '♥' : '♡'} label="Upvote" count={baseVotes + (liked ? 1 : 0)} active={liked} busy={busy === 'vote'} onClick={onLike} />
-        <Action icon="💬" label="Comment" count={post.children} onClick={() => setShowComment(true)} />
-        <Action icon="🔁" label="Reblog" active={reblogged} busy={busy === 'reblog'} onClick={onReblog} />
-        <Action icon={followed ? '✓' : '＋'} label="Follow author" active={followed} busy={busy === 'follow'} onClick={onFollow} />
-        <Action icon="？" label="Why this post" onClick={() => setShowWhy((v) => !v)} />
+        <Action icon={<IconHeart filled={liked} />} label="Upvote" count={baseVotes + (liked ? 1 : 0)} active={liked} busy={busy === 'vote'} onClick={onLike} />
+        <Action icon={<IconComment />} label="Comment" count={post.children} onClick={() => setShowComment(true)} />
+        <Action icon={<IconReblog />} label="Reblog" active={reblogged} busy={busy === 'reblog'} onClick={onReblog} />
+        <Action icon={<IconFollow filled={followed} />} label="Follow author" active={followed} busy={busy === 'follow'} onClick={onFollow} />
+        <Action icon={<IconInfo />} label="Why this post" onClick={() => setShowWhy((v) => !v)} />
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+
+      {showReader && <PostReader post={post} onClose={() => setShowReader(false)} onNeedAuth={onNeedAuth} />}
 
       {showComment && (
         <CommentSheet
@@ -100,9 +75,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
           permlink={post.permlink}
           childrenCount={post.children ?? 0}
           onClose={() => setShowComment(false)}
-          onSubmit={(body) =>
-            act('comment', () => signer!.comment(post.author, post.permlink, body), () => {}, () => {})
-          }
+          onSubmit={submitComment}
         />
       )}
 

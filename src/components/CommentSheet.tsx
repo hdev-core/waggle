@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getReplies, commentPayout, timeAgo, avatarUrl, type HiveComment } from '../lib/hiveRpc'
-import { excerpt, displayReputation } from '../lib/post'
+import { displayReputation } from '../lib/post'
+import { renderMarkdown } from '../lib/markdown'
 
 // Bottom sheet showing a post's existing comments (read from a Hive node) plus a
 // composer. Replies are direct children; `children > 0` hints at deeper threads.
@@ -101,7 +102,7 @@ function CommentRow({ c, depth = 0 }: { c: HiveComment; depth?: number }) {
           <span className="comment__dot">·</span>
           <span className="comment__age">{timeAgo(c.created)}</span>
         </div>
-        <p className="comment__body">{excerpt(c.body, 500)}</p>
+        <div className="comment__body prose prose--sm" dangerouslySetInnerHTML={{ __html: renderMarkdown(c.body) }} />
         <div className="comment__foot">
           <span>▲ {c.net_votes}</span>
           <span>${commentPayout(c).toFixed(2)}</span>
