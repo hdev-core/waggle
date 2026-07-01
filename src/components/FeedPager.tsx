@@ -1,16 +1,21 @@
 import { useEffect, useRef } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import type { FeedKind } from '../lib/types'
+import type { FeedKind, FypPost } from '../lib/types'
 import { fetchGlobalFeed, fetchPersonalizedFeed } from '../lib/api'
 import { FeedCard } from './FeedCard'
 import { ErrorBoundary } from './ErrorBoundary'
 
 const PAGE_SIZE = 20
 
-// CSS scroll-snap vertical pager with infinite scroll. Pages are fetched lazily
-// as the bottom sentinel nears the viewport, until HAF_FYP's cached feed runs
-// out (a short page → no next page).
+type PageParam = { mode: 'foryou' | 'global'; page: number }
+
+// CSS scroll-snap vertical pager with infinite scroll. Pages fetch lazily as the
+// bottom sentinel nears the viewport. When a personalized feed runs out (short
+// page), it falls through into the global feed so the feed never dead-ends;
+// posts are de-duplicated across the boundary.
 export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; username: string | null; onNeedAuth: () => void }) {
+  const startMode: PageParam['mode'] = kind === 'foryou' && username ? 'foryou' : 'global'
+
   const {
     data,
     isLoading,
@@ -22,14 +27,17 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ['feed', kind, username],
-    initialPageParam: 1,
+    initialPageParam: { mode: startMode, page: 1 } as PageParam,
     queryFn: ({ pageParam }) =>
-      kind === 'foryou' && username
-        ? fetchPersonalizedFeed(username, pageParam, PAGE_SIZE)
-        : fetchGlobalFeed(pageParam, PAGE_SIZE),
-    // Stop when the last page came back short — that's the end of the cache.
-    getNextPageParam: (lastPage, allPages) =>
-      lastPage.length === PAGE_SIZE ? allPages.length + 1 : undefined,
+      pageParam.mode === 'foryou' && username
+        ? fetchPersonalizedFeed(username, pageParam.page, PAGE_SIZE)
+        : fetchGlobalFeed(pageParam.page, PAGE_SIZE),
+    getNextPageParam: (lastPage, _all, lastParam): PageParam | undefined => {
+      if (lastPage.length === PAGE_SIZE) return { mode: lastParam.mode, page: lastParam.page + 1 }
+      // Short page = end of this source. Personalized falls through to global.
+      if (lastParam.mode === 'foryou') return { mode: 'global', page: 1 }
+      return undefined
+    },
   })
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -40,7 +48,7 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
       ([entry]) => {
         if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage()
       },
-      { rootMargin: '250% 0px' }, // prefetch ~2.5 screens early so swiping never stalls
+      { rootMargin: '250% 0px' },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -56,7 +64,16 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
       </div>
     )
 
-  const posts = data?.pages.flat() ?? []
+  // De-dupe across pages and the foryou→global boundary.
+  const seen = new Set<string>()
+  const posts: FypPost[] = []
+  for (const p of data?.pages.flat() ?? []) {
+    const key = `${p.author}/${p.permlink}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      posts.push(p)
+    }
+  }
   if (!posts.length) return <div className="state">No posts yet.</div>
 
   return (
@@ -69,7 +86,6 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
         </div>
       ))}
 
-      {/* sentinel + end-of-feed slide */}
       <div ref={sentinelRef} className="pager__sentinel" />
       {!hasNextPage && (
         <div className="pager__slide pager__end">

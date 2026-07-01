@@ -172,6 +172,13 @@ body {
 .comment__kids .comment { padding: 8px 0; border-bottom: none; }
 .composer__wrap { border-top: 1px solid #2a2a3a; padding-top: 10px; }
 
+/* Per-vote weight picker */
+.vote__value { font-size: 40px; font-weight: 800; text-align: center; color: var(--accent); margin: 6px 0 12px; }
+.vote__presets { display: flex; gap: 8px; justify-content: center; margin: 14px 0 4px; }
+.vote__preset { cursor: pointer; border: 1px solid transparent; }
+.vote__preset--on { background: rgba(255,59,107,0.25); border-color: var(--accent); }
+.vote__confirm { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
 /* Vote-weight setting */
 .setting { margin-top: 18px; padding-top: 14px; border-top: 1px solid #2a2a3a; }
 .setting__label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
@@ -245,6 +252,15 @@ body {
 .prose--sm { font-size: 14px; line-height: 1.5; }
 .prose--sm img { max-height: 320px; width: auto; }
 .prose--sm p { margin: 0 0 8px; }
+/* Hive/Condenser layout conventions */
+.prose::after { content: ""; display: table; clear: both; }
+.prose .pull-right { float: right; margin: 4px 0 10px 16px; max-width: 50%; }
+.prose .pull-left { float: left; margin: 4px 16px 10px 0; max-width: 50%; }
+.prose .text-justify { text-align: justify; }
+.prose .text-center, .prose center { text-align: center; }
+.prose center img { margin-left: auto; margin-right: auto; }
+.prose .text-rtl { direction: rtl; }
+.prose .phishy { color: #ff8aa6; }
 
 /* Cold-start interest picker */
 .picker {

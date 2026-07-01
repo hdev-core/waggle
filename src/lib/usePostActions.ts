@@ -34,10 +34,13 @@ export function usePostActions(post: FypPost, onNeedAuth: () => void) {
     }
   }
 
-  const onLike = () =>
-    liked
-      ? undefined // no un-vote yet
-      : act('vote', () => signer!.vote(post.author, post.permlink, voteWeight), () => setLiked(true), () => setLiked(false))
+  // Upvote at an explicit weight (used by the per-vote % picker). Allows
+  // re-voting at a new weight since Hive permits vote changes.
+  const vote = (weightPct: number) =>
+    act('vote', () => signer!.vote(post.author, post.permlink, weightPct), () => setLiked(true), () => setLiked(false))
+
+  // Quick upvote at the user's default weight (double-tap). No-op if already voted.
+  const onLike = () => (liked ? undefined : vote(voteWeight))
 
   const onReblog = () =>
     act('reblog', () => signer!.reblog(post.author, post.permlink), () => setReblogged(true), () => setReblogged(false))
@@ -48,5 +51,5 @@ export function usePostActions(post: FypPost, onNeedAuth: () => void) {
   const submitComment = (body: string) =>
     act('comment', () => signer!.comment(post.author, post.permlink, body), () => {}, () => {})
 
-  return { signer, liked, reblogged, followed, busy, toast, onLike, onReblog, onFollow, submitComment }
+  return { signer, liked, reblogged, followed, busy, toast, defaultWeight: voteWeight, vote, onLike, onReblog, onFollow, submitComment }
 }

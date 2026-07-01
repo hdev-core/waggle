@@ -5,6 +5,7 @@ import { usePostActions } from '../lib/usePostActions'
 import { Hero } from './Hero'
 import { CommentSheet } from './CommentSheet'
 import { PostReader } from './PostReader'
+import { VoteWeightSheet } from './VoteWeightSheet'
 import { IconHeart, IconComment, IconReblog, IconFollow, IconInfo } from './icons'
 
 function formatCount(n?: number): string | null {
@@ -30,10 +31,14 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
 
-  const { liked, reblogged, followed, busy, toast, onLike, onReblog, onFollow, submitComment } = usePostActions(post, onNeedAuth)
+  const { signer, liked, reblogged, followed, busy, toast, defaultWeight, vote, onLike, onReblog, onFollow, submitComment } = usePostActions(post, onNeedAuth)
   const [showWhy, setShowWhy] = useState(false)
   const [showComment, setShowComment] = useState(false)
   const [showReader, setShowReader] = useState(false)
+  const [showVote, setShowVote] = useState(false)
+
+  // Rail heart opens the % picker (or prompts login); double-tap quick-votes.
+  const openVote = () => (signer ? setShowVote(true) : onNeedAuth())
 
   return (
     <section className="card" onDoubleClick={onLike}>
@@ -58,7 +63,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
       </div>
 
       <div className="card__rail">
-        <Action icon={<IconHeart filled={liked} />} label="Upvote" count={baseVotes + (liked ? 1 : 0)} active={liked} busy={busy === 'vote'} onClick={onLike} />
+        <Action icon={<IconHeart filled={liked} />} label="Upvote" count={baseVotes + (liked ? 1 : 0)} active={liked} busy={busy === 'vote'} onClick={openVote} />
         <Action icon={<IconComment />} label="Comment" count={post.children} onClick={() => setShowComment(true)} />
         <Action icon={<IconReblog />} label="Reblog" active={reblogged} busy={busy === 'reblog'} onClick={onReblog} />
         <Action icon={<IconFollow filled={followed} />} label="Follow author" active={followed} busy={busy === 'follow'} onClick={onFollow} />
@@ -66,6 +71,18 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+
+      {showVote && (
+        <VoteWeightSheet
+          defaultWeight={defaultWeight}
+          busy={busy === 'vote'}
+          onClose={() => setShowVote(false)}
+          onConfirm={(pct) => {
+            vote(pct)
+            setShowVote(false)
+          }}
+        />
+      )}
 
       {showReader && <PostReader post={post} onClose={() => setShowReader(false)} onNeedAuth={onNeedAuth} />}
 

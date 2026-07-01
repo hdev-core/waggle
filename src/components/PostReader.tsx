@@ -5,6 +5,7 @@ import { renderMarkdown } from '../lib/markdown'
 import { avatarUrl, timeAgo } from '../lib/hiveRpc'
 import { usePostActions } from '../lib/usePostActions'
 import { CommentSheet } from './CommentSheet'
+import { VoteWeightSheet } from './VoteWeightSheet'
 import { IconHeart, IconComment, IconReblog, IconFollow } from './icons'
 
 // Full-post reader as a modal: tap the backdrop (or Back) to close. Renders the
@@ -17,8 +18,9 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
   const baseVotes = post.active_votes?.length ?? 0
   const hiveUrl = post.url ? `https://peakd.com${post.url}` : `https://peakd.com/@${post.author}/${post.permlink}`
 
-  const { liked, reblogged, followed, busy, toast, onLike, onReblog, onFollow, submitComment } = usePostActions(post, onNeedAuth)
+  const { signer, liked, reblogged, followed, busy, toast, defaultWeight, vote, onReblog, onFollow, submitComment } = usePostActions(post, onNeedAuth)
   const [showComment, setShowComment] = useState(false)
+  const [showVote, setShowVote] = useState(false)
 
   return (
     <div className="reader" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -47,7 +49,7 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
         </article>
 
         <footer className="reader__actions">
-          <button className={`rbtn ${liked ? 'rbtn--on' : ''}`} onClick={onLike} disabled={busy === 'vote'}>
+          <button className={`rbtn ${liked ? 'rbtn--on' : ''}`} onClick={() => (signer ? setShowVote(true) : onNeedAuth())} disabled={busy === 'vote'}>
             <IconHeart size={22} filled={liked} /> <span>{baseVotes + (liked ? 1 : 0)}</span>
           </button>
           <button className="rbtn" onClick={() => setShowComment(true)}>
@@ -62,6 +64,18 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
         </footer>
 
         {toast && <div className="toast toast--reader">{toast}</div>}
+
+        {showVote && (
+          <VoteWeightSheet
+            defaultWeight={defaultWeight}
+            busy={busy === 'vote'}
+            onClose={() => setShowVote(false)}
+            onConfirm={(pct) => {
+              vote(pct)
+              setShowVote(false)
+            }}
+          />
+        )}
       </div>
 
       {showComment && (
