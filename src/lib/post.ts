@@ -43,7 +43,13 @@ export interface HeroMedia {
   hls?: string // HLS (.m3u8) stream — 3Speak / Hive-native video
   poster?: string
   embedUrl?: string // iframe embed (YouTube / Vimeo)
+  // 3Speak post whose stream must be resolved on demand (the feed API strips the
+  // video metadata, leaving only a body URL). See lib/video.ts.
+  resolve?: { author: string; permlink: string }
 }
+
+// 3Speak URLs: 3speak.tv/watch?v=author/permlink or play.3speak.tv/embed?v=…
+const THREESPEAK_RE = /(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([\w.-]+)\/([\w-]+)/i
 
 const FIRST_MD_IMG = /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i
 const FIRST_HTML_IMG = /<img[^>]+src=["'](https?:\/\/[^"']+)["']/i
@@ -94,6 +100,11 @@ export function extractHero(post: FypPost): HeroMedia {
       poster: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`,
     }
   }
+  // 3Speak with no inline metadata (feed API strips it): mark for on-demand
+  // resolution of the HLS stream from the full on-chain post.
+  const ts = body.match(THREESPEAK_RE)
+  if (ts) return { kind: 'video', poster, resolve: { author: ts[1], permlink: ts[2] } }
+
   const mp4 = body.match(MP4_RE)
   if (mp4) return { kind: 'video', src: mp4[1], poster }
 

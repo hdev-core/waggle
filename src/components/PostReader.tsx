@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { FypPost } from '../lib/types'
 import { payoutOf, displayReputation, metaTags, extractHero } from '../lib/post'
 import { renderMarkdown } from '../lib/markdown'
+import { useResolvedVideo } from '../lib/video'
 import { HlsVideo } from './HlsVideo'
 import { avatarUrl, timeAgo } from '../lib/hiveRpc'
 import { usePostActions } from '../lib/usePostActions'
@@ -15,7 +16,11 @@ import { IconHeart, IconComment, IconReblog, IconFollow } from './icons'
 export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClose: () => void; onNeedAuth: () => void }) {
   const html = useMemo(() => renderMarkdown(post.body), [post.body])
   const hero = extractHero(post)
-  const heroVideo = hero.kind === 'video' && (hero.hls || hero.src) ? hero : null
+  const video = useResolvedVideo(hero)
+  // Show a top player for HLS / mp4 posts. YouTube stays inline (markdown embeds
+  // it), so exclude embedUrl here to avoid a duplicate player.
+  const showVideo = hero.kind === 'video' && !hero.embedUrl
+  const watchUrl = hero.resolve ? `https://3speak.tv/watch?v=${hero.resolve.author}/${hero.resolve.permlink}` : null
   const tags = metaTags(post)
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
@@ -43,12 +48,19 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
             </div>
           </div>
 
-          {heroVideo && (
+          {showVideo && (
             <div className="reader__video">
-              {heroVideo.hls ? (
-                <HlsVideo src={heroVideo.hls} poster={heroVideo.poster} muted={false} autoPlay={false} controls />
+              {video.hls ? (
+                <HlsVideo src={video.hls} poster={video.poster} muted={false} autoPlay={false} controls />
+              ) : hero.src ? (
+                <video src={hero.src} poster={video.poster} controls playsInline />
+              ) : video.status === 'loading' ? (
+                <div className="reader__vstate">Loading video…</div>
               ) : (
-                <video src={heroVideo.src} poster={heroVideo.poster} controls playsInline />
+                <div className="reader__vstate">
+                  <span>Video unavailable</span>
+                  {watchUrl && <a href={watchUrl} target="_blank" rel="noreferrer">Watch on 3Speak ↗</a>}
+                </div>
               )}
             </div>
           )}

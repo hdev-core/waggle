@@ -2,23 +2,24 @@ import { useEffect, useState } from 'react'
 import type { FypPost } from '../lib/types'
 import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
+import { useResolvedVideo } from '../lib/video'
 import { HlsVideo } from './HlsVideo'
 
 // Renders one post's hero media with TikTok-style playback:
-//  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away
-//     (useInView), so we never decode 20 full-screen images at once.
+//  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away.
 //  2. Auto-play on active: when a video slide is the centered one (>=60% in
-//     view) it auto-plays muted (browser autoplay policy requires muted). It
-//     unmounts as soon as it scrolls away, so only one video ever plays.
-//  3. Tap to toggle sound; a poster + play button remains as a manual fallback.
+//     view) it auto-plays muted; it unmounts as it scrolls away so only one
+//     video ever plays.
+//  3. Tap to toggle sound; a poster remains as a fallback while a stream loads
+//     or when a (synthetic) post has no real video behind it.
 export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const [active, setActive] = useState(false)
   const [muted, setMuted] = useState(true)
   const hero = extractHero(post)
   const isVideo = hero.kind === 'video'
+  const { hls, poster, status } = useResolvedVideo(hero)
 
-  // Track whether this slide is the centered/active one so its video auto-plays.
   useEffect(() => {
     const el = ref.current
     if (!el || !isVideo) return
@@ -30,13 +31,13 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
     return () => io.disconnect()
   }, [ref, isVideo])
 
-  // Reset to muted each time playback (re)starts, so scrolling back never blasts
-  // audio and autoplay stays within policy.
+  // Re-mute each time playback (re)starts so scrolling back never blasts audio.
   useEffect(() => {
     if (!active) setMuted(true)
   }, [active])
 
   const playing = isVideo && active
+  const hasSound = playing && (hls || hero.embedUrl || hero.src)
 
   const iframeSrc = (url: string) => {
     const sep = url.includes('?') ? '&' : '?'
@@ -45,7 +46,6 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
 
   return (
     <div className={`card__media ${blurred ? 'card__media--blur' : ''}`} ref={ref}>
-      {/* gradient base — also the placeholder before in-view and for text posts */}
       <div className="card__textbg" aria-hidden={hero.kind !== 'none'}>
         {hero.kind === 'none' && <h1 className="card__textbg-title">{title}</h1>}
       </div>
@@ -54,18 +54,22 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         <img className="card__img" src={hero.src} alt="" decoding="async" loading="lazy" />
       )}
 
-      {/* Poster shown until this slide is active (or as a fallback if blocked). */}
-      {inView && isVideo && !playing && (
+      {/* Poster shown until the stream mounts (or as the permanent frame if the
+          video can't be resolved). */}
+      {inView && isVideo && (!playing || !hls) && (
         <div className="card__playbtn" aria-hidden>
-          {hero.poster && <img className="card__img" src={hero.poster} alt="" decoding="async" />}
-          <span className="card__playicon">▶</span>
+          {poster && <img className="card__img" src={poster} alt="" decoding="async" />}
+          {playing && status === 'loading' && <span className="card__spinner" />}
+          {playing && status === 'unavailable' ? (
+            <span className="card__unavail">Video unavailable</span>
+          ) : (
+            !playing && <span className="card__playicon">▶</span>
+          )}
         </div>
       )}
 
-      {playing && hero.hls && (
-        <HlsVideo className="card__video" src={hero.hls} poster={hero.poster} muted={muted} />
-      )}
-      {playing && !hero.hls && hero.embedUrl && (
+      {playing && hls && <HlsVideo className="card__video" src={hls} poster={poster} muted={muted} />}
+      {playing && !hls && hero.embedUrl && (
         <iframe
           key={muted ? 'm' : 'u'}
           className="card__video"
@@ -75,17 +79,12 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
           allowFullScreen
         />
       )}
-      {playing && !hero.hls && !hero.embedUrl && hero.src && (
+      {playing && !hls && !hero.embedUrl && hero.src && (
         <video className="card__video" src={hero.src} autoPlay playsInline muted={muted} loop controls={false} />
       )}
 
-      {/* Tap-to-unmute pill while a video is auto-playing muted. */}
-      {playing && (
-        <button
-          className="card__mute"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? 'Unmute' : 'Mute'}
-        >
+      {hasSound && (
+        <button className="card__mute" onClick={() => setMuted((m) => !m)} aria-label={muted ? 'Unmute' : 'Mute'}>
           {muted ? '🔇 Tap for sound' : '🔊'}
         </button>
       )}
