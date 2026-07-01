@@ -245,3 +245,45 @@ body {
 .prose--sm { font-size: 14px; line-height: 1.5; }
 .prose--sm img { max-height: 320px; width: auto; }
 .prose--sm p { margin: 0 0 8px; }
+
+/* Cold-start interest picker */
+.picker {
+  position: fixed; inset: 0; z-index: 60; background: var(--bg); color: var(--fg);
+  display: flex; flex-direction: column; animation: fade 0.18s ease;
+}
+.picker__head {
+  display: flex; align-items: flex-start; gap: 12px; justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top)) 18px 12px; border-bottom: 1px solid #20202c;
+}
+.picker__head h2 { font-size: 22px; }
+.picker__sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.picker__skip { background: none; border: none; color: var(--muted); font-size: 15px; font-weight: 700; cursor: pointer; padding: 4px; flex: none; }
+.picker__grid {
+  flex: 1; overflow-y: auto; padding: 16px 18px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; align-content: start;
+}
+.ctile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: #15151f; border: 2px solid transparent; border-radius: 14px; padding: 16px 10px;
+  color: var(--fg); cursor: pointer; text-align: center; transition: border-color 0.12s, transform 0.1s;
+}
+.ctile:active { transform: scale(0.97); }
+.ctile--on { border-color: var(--accent); background: rgba(255,59,107,0.12); }
+.ctile__avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: #20202c; }
+.ctile__title { font-size: 14px; font-weight: 700; line-height: 1.2; }
+.ctile__subs { font-size: 12px; color: var(--muted); }
+.ctile__badge {
+  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.picker__foot { padding: 12px 18px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid #20202c; }
+.picker__done { flex: 1; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 24px; }
+.picker__check { width: 72px; height: 72px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 36px; }
+
+/* Cold-start CTA banner */
+.cta-banner {
+  position: fixed; left: 12px; right: 76px; bottom: 24px; z-index: 15;
+  background: var(--accent); color: #fff; border: none; border-radius: 12px;
+  padding: 12px 14px; font-size: 14px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255,59,107,0.4);
+}

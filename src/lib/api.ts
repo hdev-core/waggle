@@ -1,6 +1,14 @@
 import type { FypPost } from './types'
 import { MOCK_FEED } from './mock'
 
+// User's computed interest profile — drives cold-start detection.
+export interface FypProfile {
+  has_feed: boolean
+  has_vector: boolean
+  posts_sampled: number
+  top_communities: number[]
+}
+
 // Base origin + path prefix for HAF_FYP. Live testapi serves the clean URLs
 // under /haf-fyp-api and already sends Access-Control-Allow-Origin: *, so the
 // browser can call it directly — no proxy, no BFF. Override with VITE_FYP_BASE.
@@ -46,5 +54,33 @@ export async function fetchPersonalizedFeed(
   } catch (e) {
     console.warn('personalized feed failed, using mock', e)
     return page === 1 ? asPersonalized(MOCK_FEED) : []
+  }
+}
+
+export async function fetchProfile(username: string): Promise<FypProfile | null> {
+  if (USE_MOCK) return { has_feed: false, has_vector: false, posts_sampled: 0, top_communities: [] }
+  try {
+    const res = await fetch(`${BASE}/v1/fyp/profile/${encodeURIComponent(username)}`, {
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return (Array.isArray(data) ? data[0] : data) ?? null
+  } catch (e) {
+    console.warn('profile fetch failed', e)
+    return null
+  }
+}
+
+// Declare cold-start interests (community_ids). Rate-limited 10/min server-side.
+export async function postInterests(username: string, communities: number[]): Promise<void> {
+  const res = await fetch(`${BASE}/v1/fyp/interests`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, communities }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(res.status === 429 ? 'Too many requests — try again in a minute.' : `Couldn't save interests (${res.status}). ${detail}`.trim())
   }
 }

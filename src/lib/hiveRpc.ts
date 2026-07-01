@@ -57,3 +57,21 @@ export function timeAgo(iso: string): string {
 export function avatarUrl(account: string, size: 'small' | 'medium' = 'small'): string {
   return `https://images.hive.blog/u/${account}/avatar/${size}`
 }
+
+export interface HiveCommunity {
+  name: string // "hive-163772"
+  title: string
+  about: string
+  subscribers: number
+}
+
+// Popular communities for the cold-start interest picker, ranked by activity.
+export function listCommunities(limit = 80): Promise<HiveCommunity[]> {
+  return rpc<HiveCommunity[]>('bridge.list_communities', { sort: 'rank', limit })
+}
+
+// FYP's community_id is the numeric suffix of the "hive-NNNNNN" name
+// (processor does REPLACE(name,'hive-','')::INT), so we derive it client-side.
+export function communityIdFromName(name: string): number {
+  return parseInt(name.replace(/^hive-/, ''), 10)
+}
