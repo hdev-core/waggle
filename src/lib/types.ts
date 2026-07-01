@@ -18,8 +18,8 @@ export interface FypSignals {
 }
 
 export interface PostJsonMetadata {
-  image?: string[]
-  tags?: string[]
+  image?: string[] | string // Hive apps emit either; normalise before use
+  tags?: string[] | string
   app?: string
   [k: string]: unknown
 }

@@ -60,7 +60,10 @@ export function extractHero(post: FypPost): HeroMedia {
   const mp4 = body.match(MP4_RE)
   if (mp4) return { kind: 'video', src: mp4[1] }
 
-  const metaImg = meta.image?.find(Boolean)
+  // json_metadata.image is inconsistent across Hive apps: array, or a bare
+  // string, or absent. Normalise to an array before searching.
+  const imgs = Array.isArray(meta.image) ? meta.image : meta.image ? [meta.image as string] : []
+  const metaImg = imgs.find(Boolean)
   if (metaImg) return { kind: 'image', src: proxiedImage(metaImg) }
 
   const mdImg = body.match(FIRST_MD_IMG)?.[1]
@@ -100,4 +103,12 @@ export function displayReputation(rep?: number): number | null {
 
 export function payoutOf(post: FypPost): number {
   return Number(post.payout ?? post.pending_payout ?? 0)
+}
+
+// tags is an array on most apps but occasionally a bare/space-separated string.
+export function metaTags(post: FypPost): string[] {
+  const t = parseMeta(post).tags
+  if (Array.isArray(t)) return t.filter(Boolean)
+  if (typeof t === 'string') return t.split(/[\s,]+/).filter(Boolean)
+  return []
 }

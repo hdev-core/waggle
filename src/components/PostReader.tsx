@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FypPost } from '../lib/types'
-import { payoutOf, displayReputation, parseMeta } from '../lib/post'
+import { payoutOf, displayReputation, metaTags } from '../lib/post'
 import { renderMarkdown } from '../lib/markdown'
 import { avatarUrl, timeAgo } from '../lib/hiveRpc'
 import { usePostActions } from '../lib/usePostActions'
@@ -12,7 +12,7 @@ import { IconHeart, IconComment, IconReblog, IconFollow } from './icons'
 // can like / reblog / follow / comment without returning to the feed.
 export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClose: () => void; onNeedAuth: () => void }) {
   const html = useMemo(() => renderMarkdown(post.body), [post.body])
-  const meta = parseMeta(post)
+  const tags = metaTags(post)
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
   const hiveUrl = post.url ? `https://peakd.com${post.url}` : `https://peakd.com/@${post.author}/${post.permlink}`
@@ -40,8 +40,8 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
 
           <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />
 
-          {meta.tags && (
-            <div className="reader__tags">{meta.tags.slice(0, 6).map((t) => <span key={t} className="tag">#{t}</span>)}</div>
+          {tags.length > 0 && (
+            <div className="reader__tags">{tags.slice(0, 6).map((t) => <span key={t} className="tag">#{t}</span>)}</div>
           )}
           <a className="reader__ext" href={hiveUrl} target="_blank" rel="noreferrer">View on Hive ↗</a>
         </article>

@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import type { FeedKind } from '../lib/types'
 import { fetchGlobalFeed, fetchPersonalizedFeed } from '../lib/api'
 import { FeedCard } from './FeedCard'
+import { ErrorBoundary } from './ErrorBoundary'
 
 const PAGE_SIZE = 20
 
@@ -62,7 +63,9 @@ export function FeedPager({ kind, username, onNeedAuth }: { kind: FeedKind; user
     <div className="pager">
       {posts.map((post) => (
         <div className="pager__slide" key={`${post.author}/${post.permlink}`}>
-          <FeedCard post={post} onNeedAuth={onNeedAuth} />
+          <ErrorBoundary>
+            <FeedCard post={post} onNeedAuth={onNeedAuth} />
+          </ErrorBoundary>
         </div>
       ))}
 

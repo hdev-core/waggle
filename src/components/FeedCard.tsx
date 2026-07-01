@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { FypPost } from '../lib/types'
-import { excerpt, payoutOf, displayReputation, parseMeta } from '../lib/post'
+import { excerpt, payoutOf, displayReputation, metaTags } from '../lib/post'
 import { usePostActions } from '../lib/usePostActions'
 import { Hero } from './Hero'
 import { CommentSheet } from './CommentSheet'
@@ -26,7 +26,7 @@ function Action({ icon, label, count, active, busy, onClick }: {
 }
 
 export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () => void }) {
-  const meta = parseMeta(post)
+  const tags = metaTags(post)
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
 
@@ -54,7 +54,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
           {rep != null && <span className="card__rep">({rep})</span>}
           <span className="card__payout">${payoutOf(post).toFixed(2)}</span>
         </div>
-        {meta.tags && <div className="card__tags">{meta.tags.slice(0, 3).map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
+        {tags.length > 0 && <div className="card__tags">{tags.slice(0, 3).map((t) => <span key={t} className="tag">#{t}</span>)}</div>}
       </div>
 
       <div className="card__rail">
