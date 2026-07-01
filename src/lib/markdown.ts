@@ -24,7 +24,7 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
 
 // Only allow iframes from a small video-embed allowlist; strip any others so
 // content can't inject arbitrary frames.
-const EMBED_SRC = /^https:\/\/(www\.youtube\.com\/embed\/|3speak\.tv\/embed\?|player\.vimeo\.com\/video\/)/
+const EMBED_SRC = /^https:\/\/(www\.youtube\.com\/embed\/|player\.vimeo\.com\/video\/)/
 DOMPurify.addHook('uponSanitizeElement', (node, data) => {
   if (data.tagName === 'iframe') {
     const src = (node as Element).getAttribute?.('src') || ''
@@ -45,13 +45,11 @@ function preprocessHiveBody(body: string): string {
   let s = body
   // 0) video URLs -> responsive iframe embeds (YouTube, 3Speak, Vimeo). Run
   //    before image/mention passes. Whitelisted again at sanitize time.
+  //    (3Speak isn't handled here — its embed route is dead; the reader renders
+  //    the HLS stream via a real player instead.)
   s = s.replace(
     /(^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})[^\s<]*/gi,
     (_m, pre, id) => `${pre}${embed(`https://www.youtube.com/embed/${id}`)}`,
-  )
-  s = s.replace(
-    /(^|\s)https?:\/\/(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([\w.-]+\/[\w-]+)[^\s<]*/gi,
-    (_m, pre, id) => `${pre}${embed(`https://3speak.tv/embed?v=${id}`)}`,
   )
   // 1) markdown images ![alt](url "title") -> <img> (survives inside raw HTML)
   s = s.replace(

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { FypPost } from '../lib/types'
-import { payoutOf, displayReputation, metaTags } from '../lib/post'
+import { payoutOf, displayReputation, metaTags, extractHero } from '../lib/post'
 import { renderMarkdown } from '../lib/markdown'
+import { HlsVideo } from './HlsVideo'
 import { avatarUrl, timeAgo } from '../lib/hiveRpc'
 import { usePostActions } from '../lib/usePostActions'
 import { CommentSheet } from './CommentSheet'
@@ -13,6 +14,8 @@ import { IconHeart, IconComment, IconReblog, IconFollow } from './icons'
 // can like / reblog / follow / comment without returning to the feed.
 export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClose: () => void; onNeedAuth: () => void }) {
   const html = useMemo(() => renderMarkdown(post.body), [post.body])
+  const hero = extractHero(post)
+  const heroVideo = hero.kind === 'video' && (hero.hls || hero.src) ? hero : null
   const tags = metaTags(post)
   const rep = displayReputation(post.author_reputation)
   const baseVotes = post.active_votes?.length ?? 0
@@ -39,6 +42,16 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
               <div className="reader__sub">{timeAgo(post.created)} ago · ${payoutOf(post).toFixed(2)}</div>
             </div>
           </div>
+
+          {heroVideo && (
+            <div className="reader__video">
+              {heroVideo.hls ? (
+                <HlsVideo src={heroVideo.hls} poster={heroVideo.poster} muted={false} autoPlay={false} controls />
+              ) : (
+                <video src={heroVideo.src} poster={heroVideo.poster} controls playsInline />
+              )}
+            </div>
+          )}
 
           <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />
 

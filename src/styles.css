@@ -279,6 +279,8 @@ body {
 .prose img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; display: block; }
 .embed-wrap { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; margin: 12px 0; border-radius: 10px; overflow: hidden; background: #000; }
 .embed-wrap .embed { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.reader__video { width: 100%; margin: 0 0 16px; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; }
+.reader__video video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .prose blockquote { margin: 14px 0; padding: 4px 14px; border-left: 3px solid #3a3a4a; color: var(--muted); }
 .prose pre { background: #15151f; padding: 12px; border-radius: 10px; overflow-x: auto; margin: 14px 0; }
 .prose code { background: #15151f; padding: 1px 5px; border-radius: 5px; font-size: 0.9em; }

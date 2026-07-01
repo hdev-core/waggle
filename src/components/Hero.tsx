@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FypPost } from '../lib/types'
 import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
+import { HlsVideo } from './HlsVideo'
 
 // Renders one post's hero media with TikTok-style playback:
 //  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away
@@ -61,7 +62,10 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         </div>
       )}
 
-      {playing && hero.embedUrl && (
+      {playing && hero.hls && (
+        <HlsVideo className="card__video" src={hero.hls} poster={hero.poster} muted={muted} />
+      )}
+      {playing && !hero.hls && hero.embedUrl && (
         <iframe
           key={muted ? 'm' : 'u'}
           className="card__video"
@@ -71,7 +75,7 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
           allowFullScreen
         />
       )}
-      {playing && hero.src && (
+      {playing && !hero.hls && !hero.embedUrl && hero.src && (
         <video className="card__video" src={hero.src} autoPlay playsInline muted={muted} loop controls={false} />
       )}
 

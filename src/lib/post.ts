@@ -26,20 +26,38 @@ export function proxiedImage(url: string, width = 720): string {
   return `${IMG_PROXY}/${width}x0/${original}`
 }
 
+interface VideoSource {
+  url: string
+  type?: string
+  format?: string
+}
+interface VideoInfo {
+  video_v2?: string
+  ipfsThumbnail?: string
+  sourceMap?: VideoSource[]
+}
+
 export interface HeroMedia {
   kind: 'image' | 'video' | 'none'
-  src?: string
+  src?: string // direct mp4
+  hls?: string // HLS (.m3u8) stream — 3Speak / Hive-native video
   poster?: string
-  embedUrl?: string
+  embedUrl?: string // iframe embed (YouTube / Vimeo)
 }
 
 const FIRST_MD_IMG = /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i
 const FIRST_HTML_IMG = /<img[^>]+src=["'](https?:\/\/[^"']+)["']/i
 const YT_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/i
-// 3Speak posts embed as 3speak.tv/watch?v=, or play.3speak.tv/embed?v=, or
-// 3speak.tv/embed?v= — id is author/permlink.
-const THREESPEAK_RE = /(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([\w.-]+\/[\w-]+)/i
 const MP4_RE = /(https?:\/\/[^\s)"']+\.mp4)/i
+
+// 3Speak / Hive-native videos are HLS streams stored on IPFS. This gateway
+// serves them with permissive CORS (verified), which the browser needs to play
+// the manifest cross-origin. Resolve ipfs://CID/path to an https URL.
+const IPFS_GATEWAY = 'https://ipfs-3speak.b-cdn.net/ipfs/'
+function ipfsToHttp(u?: string): string | undefined {
+  if (!u) return undefined
+  return u.startsWith('ipfs://') ? IPFS_GATEWAY + u.slice('ipfs://'.length) : u
+}
 
 // Pick the best hero for a card: explicit json_metadata image, then any embed
 // or image found in the body. Cheap, synchronous, no DOM.
@@ -52,6 +70,22 @@ export function extractHero(post: FypPost): HeroMedia {
   const metaImg = imgs.find(Boolean)
   const poster = metaImg ? proxiedImage(metaImg) : undefined
 
+  // 3Speak / Hive-native video: json_metadata.video carries an HLS manifest.
+  // Prefer this over parsing the body — the old 3speak.tv/embed iframe route is
+  // dead (404s), so we stream the m3u8 directly.
+  const vid = (meta as { video?: { info?: VideoInfo; content?: VideoInfo } }).video
+  const vinfo = vid?.info || vid?.content
+  const m3u8 =
+    vinfo?.video_v2 ||
+    (Array.isArray(vinfo?.sourceMap) ? vinfo!.sourceMap.find((s) => s.format === 'm3u8')?.url : undefined)
+  if (m3u8) {
+    const thumb =
+      (Array.isArray(vinfo?.sourceMap) ? vinfo!.sourceMap.find((s) => s.type === 'thumbnail')?.url : undefined) ||
+      vinfo?.ipfsThumbnail
+    const th = ipfsToHttp(thumb)
+    return { kind: 'video', hls: ipfsToHttp(m3u8), poster: th ? proxiedImage(th) : poster }
+  }
+
   const yt = body.match(YT_RE)
   if (yt) {
     return {
@@ -59,10 +93,6 @@ export function extractHero(post: FypPost): HeroMedia {
       embedUrl: `https://www.youtube.com/embed/${yt[1]}`,
       poster: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`,
     }
-  }
-  const ts = body.match(THREESPEAK_RE)
-  if (ts) {
-    return { kind: 'video', embedUrl: `https://3speak.tv/embed?v=${ts[1]}`, poster }
   }
   const mp4 = body.match(MP4_RE)
   if (mp4) return { kind: 'video', src: mp4[1], poster }
