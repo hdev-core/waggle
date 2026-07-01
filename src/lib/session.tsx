@@ -10,7 +10,7 @@ interface SessionState {
   hasKeychain: boolean
   voteWeight: number // 1..100, default 100, adjustable
   setVoteWeight: (pct: number) => void
-  loginKeychain: (username: string) => Promise<void>
+  loginKeychain: (username: string) => Promise<Signer>
   setReadOnlyUser: (username: string) => void // read personalized feed w/o signing
   logout: () => void
 }
@@ -42,6 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(USER_KEY, u)
         setSigner(s)
         setUsername(u)
+        return s
       },
       setReadOnlyUser: (name) => {
         const u = name.trim().replace(/^@/, '').toLowerCase()

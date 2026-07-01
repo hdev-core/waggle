@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listCommunities, communityIdFromName, avatarUrl } from '../lib/hiveRpc'
 import { postInterests } from '../lib/api'
+import { buildInterestsMessage } from '../lib/interests'
+import { useSession } from '../lib/session'
 
 const MAX = 50
 
@@ -20,6 +22,7 @@ export function InterestPicker({ username, onClose, onSaved }: {
     staleTime: 60 * 60_000,
   })
 
+  const { signer, loginKeychain } = useSession()
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -39,7 +42,13 @@ export function InterestPicker({ username, onClose, onSaved }: {
     setErr(null)
     try {
       const ids = [...sel].map(communityIdFromName).filter((n) => Number.isFinite(n))
-      await postInterests(username, ids)
+      // Saving interests is an authenticated write: prove control of the account
+      // by signing the challenge with the posting key (Keychain). Sign in first
+      // if the user was only browsing read-only.
+      const s = signer ?? (await loginKeychain(username))
+      const timestamp = Math.floor(Date.now() / 1000)
+      const signature = await s.sign(buildInterestsMessage(username, timestamp, ids))
+      await postInterests({ username, communities: ids, timestamp, signature })
       setSaved(true)
       setTimeout(onSaved, 1400)
     } catch (e) {
@@ -90,8 +99,9 @@ export function InterestPicker({ username, onClose, onSaved }: {
           <div className="picker__foot">
             {err && <p className="state__err">{err}</p>}
             <button className="btn btn--full" disabled={sel.size < 1 || saving} onClick={save}>
-              {saving ? 'Saving…' : sel.size ? `Personalize with ${sel.size} communit${sel.size === 1 ? 'y' : 'ies'}` : 'Select at least one'}
+              {saving ? 'Check Keychain…' : sel.size ? `Sign & personalize (${sel.size})` : 'Select at least one'}
             </button>
+            <p className="login__hint">Saving is signed with Hive Keychain to prove it's your account — no transaction, no fee.</p>
           </div>
         </>
       )}

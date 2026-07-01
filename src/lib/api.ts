@@ -78,16 +78,26 @@ export async function fetchProfile(username: string): Promise<FypProfile | null>
   }
 }
 
-// Declare cold-start interests (community_ids). Rate-limited 10/min server-side.
-// Goes to the FastAPI overlay (ADMIN_BASE), not PostgREST.
-export async function postInterests(username: string, communities: number[]): Promise<void> {
+export interface SignedInterests {
+  username: string
+  communities: number[]
+  timestamp: number
+  signature: string
+}
+
+// Declare cold-start interests. Authenticated: the body carries a posting-key
+// signature the backend verifies (see haf_fyp auth.verify_interests). Goes to
+// the FastAPI overlay (ADMIN_BASE), not PostgREST. Rate-limited 10/min.
+export async function postInterests(payload: SignedInterests): Promise<void> {
   const res = await fetch(`${ADMIN_BASE}/v1/fyp/interests`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, communities }),
+    body: JSON.stringify(payload),
   })
   if (!res.ok) {
+    if (res.status === 429) throw new Error('Too many requests — try again in a minute.')
+    if (res.status === 401) throw new Error('Signature rejected — please sign in with the correct account.')
     const detail = await res.text().catch(() => '')
-    throw new Error(res.status === 429 ? 'Too many requests — try again in a minute.' : `Couldn't save interests (${res.status}). ${detail}`.trim())
+    throw new Error(`Couldn't save interests (${res.status}). ${detail}`.trim())
   }
 }

@@ -16,12 +16,18 @@ export interface Signer {
   reblog(author: string, permlink: string): Promise<void>
   follow(account: string): Promise<void>
   comment(parentAuthor: string, parentPermlink: string, body: string): Promise<void>
+  // Sign an arbitrary challenge with the posting key (proves account control,
+  // e.g. for the off-chain interests write). Returns the hex signature.
+  sign(message: string): Promise<string>
+  readonly username: string | null
 }
 
 interface KeychainResponse {
   success: boolean
   error?: string
   message?: string
+  result?: string // signature for requestSignBuffer
+  publicKey?: string
 }
 
 // Minimal typing for the injected extension.
@@ -57,6 +63,10 @@ export class KeychainSigner implements Signer {
   readonly kind = 'keychain' as const
   private user: string | null = null
 
+  get username(): string | null {
+    return this.user
+  }
+
   async login(username: string): Promise<{ username: string }> {
     const name = username.trim().replace(/^@/, '').toLowerCase()
     if (!name) throw new Error('Enter a username')
@@ -86,6 +96,22 @@ export class KeychainSigner implements Signer {
   follow(account: string): Promise<void> {
     const json = JSON.stringify(['follow', { follower: this.me(), following: account, what: ['blog'] }])
     return run((cb) => kc().requestCustomJson(this.me(), 'follow', 'Posting', json, 'Follow', cb))
+  }
+
+  // Sign a challenge with the posting key. Resolves with the hex signature that
+  // the backend recovers a pubkey from (see haf_fyp auth.verify_interests).
+  sign(message: string): Promise<string> {
+    const me = this.me()
+    return new Promise((resolve, reject) => {
+      kc().requestSignBuffer(
+        me,
+        message,
+        'Posting',
+        (r) => (r && r.success && r.result ? resolve(r.result) : reject(new Error(r?.message || r?.error || 'Signature request cancelled'))),
+        null,
+        'HiveFY',
+      )
+    })
   }
 
   comment(parentAuthor: string, parentPermlink: string, body: string): Promise<void> {
