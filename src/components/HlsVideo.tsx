@@ -36,7 +36,28 @@ export function HlsVideo({
     import('hls.js').then(({ default: Hls }) => {
       if (cancelled) return
       if (Hls.isSupported()) {
-        hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true })
+        // Some 3Speak master playlists declare only the audio codec in CODECS
+        // (e.g. CODECS="mp4a.40.2" with no avc1), which makes hls.js build an
+        // audio-only pipeline → sound but no picture. Strip a video-less CODECS
+        // hint so hls.js detects the real (muxed) tracks from the TS segments.
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const Base: any = Hls.DefaultConfig.loader
+        class FixCodecsLoader extends Base {
+          load(context: any, config: any, callbacks: any) {
+            const orig = callbacks.onSuccess
+            callbacks.onSuccess = (response: any, ...rest: any[]) => {
+              if (typeof response?.data === 'string' && response.data.includes('#EXT-X-STREAM-INF')) {
+                response.data = response.data.replace(/,?CODECS="[^"]*"/g, (m: string) =>
+                  /avc1|avc3|hvc1|hev1|vp0?9|av01/i.test(m) ? m : '',
+                )
+              }
+              orig(response, ...rest)
+            }
+            super.load(context, config, callbacks)
+          }
+        }
+        /* eslint-enable @typescript-eslint/no-explicit-any */
+        hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true, pLoader: FixCodecsLoader as never })
         hls.loadSource(src)
         hls.attachMedia(video)
       } else {
