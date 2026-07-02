@@ -48,7 +48,7 @@ function preprocessHiveBody(body: string): string {
   //    (3Speak isn't handled here — its embed route is dead; the reader renders
   //    the HLS stream via a real player instead.)
   s = s.replace(
-    /(^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})[^\s<]*/gi,
+    /(^|\s)(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})[^\s<]*/gi,
     (_m, pre, id) => `${pre}${embed(`https://www.youtube.com/embed/${id}`)}`,
   )
   // 1) markdown images ![alt](url "title") -> <img> (survives inside raw HTML)

@@ -53,7 +53,7 @@ const THREESPEAK_RE = /(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([\w.-]+)\/([\w
 
 const FIRST_MD_IMG = /!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/i
 const FIRST_HTML_IMG = /<img[^>]+src=["'](https?:\/\/[^"']+)["']/i
-const YT_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/i
+const YT_RE = /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/i
 const MP4_RE = /(https?:\/\/[^\s)"']+\.mp4)/i
 
 // 3Speak / Hive-native videos are HLS streams stored on IPFS. This gateway
