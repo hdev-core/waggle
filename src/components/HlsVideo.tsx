@@ -1,5 +1,31 @@
 import { useEffect, useRef } from 'react'
 
+// Choose a single variant (media playlist) from an HLS master. We deliberately
+// bypass the master's CODECS attribute: many 3Speak masters declare only the
+// audio codec (e.g. CODECS="mp4a.40.2", no avc1), which makes players build an
+// audio-only pipeline → sound but no picture. A media playlist carries no codec
+// hint, so hls.js reads the real codec from the (muxed H.264+AAC) segments.
+// Prefer the highest rendition <=720p (feed-friendly), else the smallest.
+function pickVariant(master: string, baseUrl: string): string | null {
+  const lines = master.split(/\r?\n/)
+  const variants: { h: number; uri: string }[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('#EXT-X-STREAM-INF')) {
+      const m = lines[i].match(/RESOLUTION=\d+x(\d+)/i)
+      const uri = lines[i + 1]?.trim()
+      if (uri && !uri.startsWith('#')) variants.push({ h: m ? parseInt(m[1], 10) : 0, uri })
+    }
+  }
+  if (!variants.length) return null
+  const le720 = variants.filter((v) => v.h && v.h <= 720).sort((a, b) => b.h - a.h)
+  const chosen = le720[0] || [...variants].sort((a, b) => a.h - b.h)[0]
+  try {
+    return new URL(chosen.uri, baseUrl).href
+  } catch {
+    return null
+  }
+}
+
 // Plays an HLS (.m3u8) stream — 3Speak / Hive-native video. Safari/iOS play HLS
 // natively; other browsers get hls.js (loaded on demand so it never weighs down
 // the initial bundle). The <video> is fully controlled via the ref so React's
@@ -25,47 +51,38 @@ export function HlsVideo({
     const video = ref.current
     if (!video) return
 
-    // Native HLS (Safari, iOS) — just point the element at the manifest.
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src
-      return
-    }
-
     let cancelled = false
     let hls: import('hls.js').default | undefined
-    import('hls.js').then(({ default: Hls }) => {
+
+    async function start() {
+      // Resolve master → a single variant media playlist (see pickVariant).
+      let url = src
+      try {
+        const res = await fetch(src)
+        const text = await res.text()
+        if (text.includes('#EXT-X-STREAM-INF')) url = pickVariant(text, src) || src
+      } catch {
+        /* network hiccup — fall back to the master URL below */
+      }
+      if (cancelled || !video) return
+
+      // Native HLS (Safari, iOS).
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url
+        return
+      }
+      const { default: Hls } = await import('hls.js')
       if (cancelled) return
       if (Hls.isSupported()) {
-        // Many 3Speak master playlists declare only the audio codec in CODECS
-        // (e.g. CODECS="mp4a.40.2" with no avc1), so hls.js sets videoCodec=
-        // undefined and builds an audio-only pipeline → sound but no picture
-        // (the .ts segments are actually muxed H.264+AAC). Inject a generic
-        // H.264 codec so hls.js creates the video buffer; the decoder handles
-        // the real profile from the segments. Verified against hls.js's parser.
-        /* eslint-disable @typescript-eslint/no-explicit-any */
-        const Base: any = Hls.DefaultConfig.loader
-        class FixCodecsLoader extends Base {
-          load(context: any, config: any, callbacks: any) {
-            const orig = callbacks.onSuccess
-            callbacks.onSuccess = (response: any, ...rest: any[]) => {
-              if (typeof response?.data === 'string' && response.data.includes('#EXT-X-STREAM-INF')) {
-                response.data = response.data.replace(/CODECS="([^"]*)"/g, (m: string, codecs: string) =>
-                  /avc1|avc3|hvc1|hev1|vp0?9|av01/i.test(codecs) ? m : `CODECS="avc1.4d401f,${codecs}"`,
-                )
-              }
-              orig(response, ...rest)
-            }
-            super.load(context, config, callbacks)
-          }
-        }
-        /* eslint-enable @typescript-eslint/no-explicit-any */
-        hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true, pLoader: FixCodecsLoader as never })
-        hls.loadSource(src)
+        hls = new Hls({ maxBufferLength: 20 })
+        hls.loadSource(url)
         hls.attachMedia(video)
       } else {
-        video.src = src // last-ditch; may not play in unsupported browsers
+        video.src = url // last-ditch
       }
-    })
+    }
+    start()
+
     return () => {
       cancelled = true
       hls?.destroy()
