@@ -36,10 +36,12 @@ export function HlsVideo({
     import('hls.js').then(({ default: Hls }) => {
       if (cancelled) return
       if (Hls.isSupported()) {
-        // Some 3Speak master playlists declare only the audio codec in CODECS
-        // (e.g. CODECS="mp4a.40.2" with no avc1), which makes hls.js build an
-        // audio-only pipeline → sound but no picture. Strip a video-less CODECS
-        // hint so hls.js detects the real (muxed) tracks from the TS segments.
+        // Many 3Speak master playlists declare only the audio codec in CODECS
+        // (e.g. CODECS="mp4a.40.2" with no avc1), so hls.js sets videoCodec=
+        // undefined and builds an audio-only pipeline → sound but no picture
+        // (the .ts segments are actually muxed H.264+AAC). Inject a generic
+        // H.264 codec so hls.js creates the video buffer; the decoder handles
+        // the real profile from the segments. Verified against hls.js's parser.
         /* eslint-disable @typescript-eslint/no-explicit-any */
         const Base: any = Hls.DefaultConfig.loader
         class FixCodecsLoader extends Base {
@@ -47,8 +49,8 @@ export function HlsVideo({
             const orig = callbacks.onSuccess
             callbacks.onSuccess = (response: any, ...rest: any[]) => {
               if (typeof response?.data === 'string' && response.data.includes('#EXT-X-STREAM-INF')) {
-                response.data = response.data.replace(/,?CODECS="[^"]*"/g, (m: string) =>
-                  /avc1|avc3|hvc1|hev1|vp0?9|av01/i.test(m) ? m : '',
+                response.data = response.data.replace(/CODECS="([^"]*)"/g, (m: string, codecs: string) =>
+                  /avc1|avc3|hvc1|hev1|vp0?9|av01/i.test(codecs) ? m : `CODECS="avc1.4d401f,${codecs}"`,
                 )
               }
               orig(response, ...rest)

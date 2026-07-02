@@ -3,6 +3,7 @@ import type { FypPost } from '../lib/types'
 import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
 import { useResolvedVideo } from '../lib/video'
+import { useMuted } from '../lib/muteStore'
 import { HlsVideo } from './HlsVideo'
 
 // Renders one post's hero media with TikTok-style playback:
@@ -15,7 +16,7 @@ import { HlsVideo } from './HlsVideo'
 export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const [active, setActive] = useState(false)
-  const [muted, setMuted] = useState(true)
+  const [muted, setMuted] = useMuted() // global: sound choice carries to every card
   const hero = extractHero(post)
   const isVideo = hero.kind === 'video'
   const { hls, poster, status } = useResolvedVideo(hero)
@@ -30,11 +31,6 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
     io.observe(el)
     return () => io.disconnect()
   }, [ref, isVideo])
-
-  // Re-mute each time playback (re)starts so scrolling back never blasts audio.
-  useEffect(() => {
-    if (!active) setMuted(true)
-  }, [active])
 
   const playing = isVideo && active
   const hasSound = playing && (hls || hero.embedUrl || hero.src)
@@ -84,7 +80,7 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
       )}
 
       {hasSound && (
-        <button className="card__mute" onClick={() => setMuted((m) => !m)} aria-label={muted ? 'Unmute' : 'Mute'}>
+        <button className="card__mute" onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
           {muted ? '🔇 Tap for sound' : '🔊'}
         </button>
       )}
