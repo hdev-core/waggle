@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FypPost } from '../lib/types'
-import { extractHero } from '../lib/post'
+import { extractHero, unproxyImage } from '../lib/post'
 import { useInView } from '../lib/useInView'
 import { useResolvedVideo } from '../lib/video'
 import { HlsVideo } from './HlsVideo'
@@ -56,6 +56,13 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
   // loading/unavailable) and for gated videos. HLS/YT render their own poster.
   const showFacade = inView && isVideo && (gated || (!hls && !ytId)) && (!playing || status === 'loading' || status === 'unavailable')
 
+  // If a proxied image 403s, retry the raw original once (see unproxyImage).
+  const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const el = e.currentTarget
+    const orig = unproxyImage(el.src)
+    if (orig !== el.src) el.src = orig
+  }
+
   return (
     <div className={`card__media ${blurred ? 'card__media--blur' : ''}`} ref={ref}>
       <div className="card__textbg" aria-hidden={hero.kind !== 'none'}>
@@ -63,12 +70,12 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
       </div>
 
       {inView && hero.kind === 'image' && hero.src && (
-        <img className="card__img" src={hero.src} alt="" decoding="async" loading="lazy" />
+        <img className="card__img" src={hero.src} alt="" decoding="async" loading="lazy" onError={onImgError} />
       )}
 
       {showFacade && (
         <div className="card__playbtn" aria-hidden>
-          {poster && <img className="card__img" src={poster} alt="" decoding="async" />}
+          {poster && <img className="card__img" src={poster} alt="" decoding="async" onError={onImgError} />}
           {playing && status === 'loading' && <span className="card__spinner" />}
           {playing && status === 'unavailable' ? (
             <span className="card__unavail">Video unavailable</span>

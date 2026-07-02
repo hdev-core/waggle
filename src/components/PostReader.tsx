@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FypPost } from '../lib/types'
-import { payoutOf, displayReputation, metaTags, extractHero } from '../lib/post'
+import { payoutOf, displayReputation, metaTags, extractHero, unproxyImage } from '../lib/post'
 import { renderMarkdown } from '../lib/markdown'
 import { useResolvedVideo } from '../lib/video'
 import { HlsVideo } from './HlsVideo'
@@ -65,7 +65,18 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
             </div>
           )}
 
-          <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <div
+            className="prose"
+            dangerouslySetInnerHTML={{ __html: html }}
+            onErrorCapture={(e) => {
+              const t = e.target as HTMLElement
+              if (t.tagName === 'IMG') {
+                const img = t as HTMLImageElement
+                const orig = unproxyImage(img.src)
+                if (orig !== img.src) img.src = orig
+              }
+            }}
+          />
 
           {tags.length > 0 && (
             <div className="reader__tags">{tags.slice(0, 6).map((t) => <span key={t} className="tag">#{t}</span>)}</div>

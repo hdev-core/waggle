@@ -19,11 +19,21 @@ export function parseMeta(post: FypPost): PostJsonMetadata {
 // modest width (default 720) keeps payloads small and maximises proxy cache hits
 // (each distinct size triggers a server-side resize on first request). Strips an
 // existing proxy size prefix so we never double-proxy.
+// files.peakd.com images are rejected by the proxy (301 → 403), so we serve
+// those (very common on Hive) directly; unproxyImage is the runtime safety net.
 export function proxiedImage(url: string, width = 720): string {
   if (!url) return url
   const m = url.match(/^https?:\/\/images\.hive\.blog\/(?:\d+x\d+|p|0x0)\/(.+)$/)
   const original = m ? m[1] : url
+  if (/^https?:\/\/files\.peakd\.com\//i.test(original)) return original
   return `${IMG_PROXY}/${width}x0/${original}`
+}
+
+// Reverse proxiedImage → the original source URL. Used as an <img> onError
+// fallback: if the proxy fails (403/redirect), retry the raw image, which loads.
+export function unproxyImage(url: string): string {
+  const m = url.match(/^https?:\/\/images\.hive\.blog\/(?:\d+x\d+|p|0x0)\/(https?:\/\/.+)$/)
+  return m ? m[1] : url
 }
 
 interface VideoSource {
