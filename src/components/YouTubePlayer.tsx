@@ -25,6 +25,12 @@ function loadYT(): Promise<any> {
   return ytReady
 }
 
+// Warm the IFrame API ahead of time (call when a YouTube card nears the
+// viewport) so the first player boots without paying the script-load cost.
+export function preloadYT() {
+  loadYT()
+}
+
 // Plays a YouTube video via the IFrame API (not a bare iframe), so mute, volume,
 // speed and seek all work through the shared VideoOverlay without reloading the
 // player (a bare iframe would restart at 0 on every change). Auto-plays when

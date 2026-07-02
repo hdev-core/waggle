@@ -4,7 +4,7 @@ import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
 import { useResolvedVideo } from '../lib/video'
 import { HlsVideo } from './HlsVideo'
-import { YouTubePlayer } from './YouTubePlayer'
+import { YouTubePlayer, preloadYT } from './YouTubePlayer'
 
 // Renders one post's hero media with TikTok-style playback:
 //  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away.
@@ -45,6 +45,11 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
     return () => io.disconnect()
   }, [ref, isVideo])
 
+  // Warm the YouTube IFrame API as soon as a YT card nears the viewport.
+  useEffect(() => {
+    if (ytId && near) preloadYT()
+  }, [ytId, near])
+
   const gated = !!blurred // NSFW/muted — never autoplay behind the blur
   const playing = isVideo && active && !gated
   // Poster/spinner facade for non-HLS states (YouTube/mp4 before play, resolve
@@ -79,8 +84,9 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         <HlsVideo className="card__video" src={hls} poster={poster} active={active} overlay />
       )}
 
-      {/* YouTube via the IFrame API — same overlay controls as HLS. */}
-      {playing && !hls && ytId && (
+      {/* YouTube via the IFrame API — preloaded near the viewport, plays only
+          when active; same overlay controls as HLS. */}
+      {near && !hls && ytId && !gated && (
         <YouTubePlayer className="card__video" videoId={ytId} poster={poster} active={active} />
       )}
       {/* Bare mp4 (rare on Hive) — native controls. */}
