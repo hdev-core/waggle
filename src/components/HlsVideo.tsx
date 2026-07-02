@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useMediaPrefs } from '../lib/mediaPrefs'
+import { VideoOverlay } from './VideoOverlay'
 
 // Choose a single variant (media playlist) from an HLS master. We deliberately
 // bypass the master's CODECS attribute: many 3Speak masters declare only the
@@ -27,46 +29,48 @@ function pickVariant(master: string, baseUrl: string): string | null {
 }
 
 // Plays an HLS (.m3u8) stream — 3Speak / Hive-native video. Safari/iOS play HLS
-// natively; other browsers get hls.js (loaded on demand so it never weighs down
-// the initial bundle). The <video> is fully controlled via the ref so React's
-// flaky `muted` attribute handling doesn't leave audio on when we want it off.
+// natively; other browsers get hls.js (loaded on demand). Two modes:
+//  • feed (overlay): custom controls (VideoOverlay); auto-plays when `active`,
+//    preloads otherwise so playback starts instantly on swipe.
+//  • native: the browser's own controls (reader), user-driven.
 export function HlsVideo({
   src,
   poster,
-  muted,
-  autoPlay = true,
-  controls = false,
   className,
+  active = true,
+  overlay = false,
+  native = false,
 }: {
   src: string
   poster?: string
-  muted: boolean
-  autoPlay?: boolean
-  controls?: boolean
   className?: string
+  active?: boolean
+  overlay?: boolean
+  native?: boolean
 }) {
   const ref = useRef<HTMLVideoElement>(null)
+  const scrubbing = useRef(false)
+  const { muted, volume, speed } = useMediaPrefs()
+  const [current, setCurrent] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [paused, setPaused] = useState(true)
 
   useEffect(() => {
     const video = ref.current
     if (!video) return
-
     let cancelled = false
     let hls: import('hls.js').default | undefined
 
     async function start() {
-      // Resolve master → a single variant media playlist (see pickVariant).
       let url = src
       try {
         const res = await fetch(src)
         const text = await res.text()
         if (text.includes('#EXT-X-STREAM-INF')) url = pickVariant(text, src) || src
       } catch {
-        /* network hiccup — fall back to the master URL below */
+        /* fall back to master */
       }
       if (cancelled || !video) return
-
-      // Native HLS (Safari, iOS).
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url
         return
@@ -74,36 +78,96 @@ export function HlsVideo({
       const { default: Hls } = await import('hls.js')
       if (cancelled) return
       if (Hls.isSupported()) {
-        hls = new Hls({ maxBufferLength: 20 })
+        hls = new Hls({ maxBufferLength: 30 })
         hls.loadSource(url)
         hls.attachMedia(video)
       } else {
-        video.src = url // last-ditch
+        video.src = url
       }
     }
     start()
-
     return () => {
       cancelled = true
       hls?.destroy()
     }
   }, [src])
 
-  // Keep the muted property in sync (React's attribute handling is unreliable).
+  // Apply global prefs to the element.
   useEffect(() => {
-    if (ref.current) ref.current.muted = muted
-  }, [muted])
+    if (ref.current) ref.current.muted = native ? false : muted
+  }, [muted, native])
+  useEffect(() => {
+    if (ref.current) ref.current.volume = volume
+  }, [volume])
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = speed
+  }, [speed])
+
+  // Feed mode: play ONLY while this is the active (centered) slide. Preloaded
+  // neighbors buffer but must never play — else you'd hear a video that isn't on
+  // screen. If autoplay-with-sound is blocked, retry muted so it never stalls.
+  useEffect(() => {
+    if (native) return
+    const video = ref.current
+    if (!video) return
+    if (active) {
+      video.playbackRate = speed
+      video.play().catch(() => {
+        video.muted = true
+        video.play().catch(() => {})
+      })
+    } else {
+      video.pause()
+      video.currentTime = 0
+    }
+  }, [active, native, speed])
 
   return (
-    <video
-      ref={ref}
-      className={className}
-      poster={poster}
-      autoPlay={autoPlay}
-      muted={muted}
-      playsInline
-      loop
-      controls={controls}
-    />
+    <div className={`hls ${className ?? ''}`}>
+      <video
+        ref={ref}
+        className="hls__video"
+        poster={poster}
+        preload="auto"
+        playsInline
+        loop
+        controls={native}
+        onPlay={() => setPaused(false)}
+        onPause={() => setPaused(true)}
+        onTimeUpdate={() => {
+          if (!scrubbing.current && ref.current) setCurrent(ref.current.currentTime)
+        }}
+        onDurationChange={() => {
+          const d = ref.current?.duration
+          if (d && isFinite(d)) setDuration(d)
+        }}
+        onLoadedMetadata={() => {
+          if (ref.current) {
+            const d = ref.current.duration
+            if (d && isFinite(d)) setDuration(d)
+            ref.current.playbackRate = speed
+          }
+        }}
+      />
+
+      {overlay && !native && (
+        <VideoOverlay
+          paused={paused}
+          current={current}
+          duration={duration}
+          onTogglePlay={() => {
+            const v = ref.current
+            if (!v) return
+            v.paused ? v.play().catch(() => {}) : v.pause()
+          }}
+          onSeek={(t) => {
+            if (ref.current) ref.current.currentTime = t
+            setCurrent(t)
+          }}
+          onScrubStart={() => (scrubbing.current = true)}
+          onScrubEnd={() => (scrubbing.current = false)}
+        />
+      )}
+    </div>
   )
 }

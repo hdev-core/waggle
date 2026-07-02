@@ -87,6 +87,73 @@ body {
   background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,0.78) 100%);
   pointer-events: none;
 }
+
+/* HLS player + custom TikTok-style controls */
+.hls { position: absolute; inset: 0; }
+.hls__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.hls__yt { overflow: hidden; }
+.hls__yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* Transparent tap layer — click the video to play/pause (below the buttons). */
+.hls__tap { position: absolute; inset: 0; z-index: 3; background: transparent; border: 0; padding: 0; cursor: pointer; }
+.hls__bigplay {
+  position: absolute; inset: 0; margin: auto; width: 76px; height: 76px; z-index: 7;
+  border: 0; border-radius: 50%; color: #fff; font-size: 30px; padding-left: 4px; cursor: pointer;
+  display: grid; place-items: center; background: rgba(0,0,0,0.45); backdrop-filter: blur(6px);
+}
+.hls__ctl {
+  position: absolute; top: calc(58px + env(safe-area-inset-top)); right: 12px; z-index: 8;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+}
+/* Speed + volume share a round pill button */
+.hls__pill {
+  border: 0; border-radius: 999px; min-width: 38px; height: 34px; padding: 0 11px; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: #fff; line-height: 1;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+}
+.hls__vol { position: relative; }
+/* Vertical volume slider popover, opened by clicking the speaker */
+.hls__volpop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 9;
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+  border-radius: 12px; padding: 12px 8px; display: grid; place-items: center;
+}
+/* Custom vertical volume slider (top = max, drag to bottom to mute) */
+.hls__voltrack {
+  position: relative; width: 6px; height: 108px; border-radius: 3px;
+  background: rgba(255,255,255,0.28); cursor: pointer; touch-action: none;
+}
+.hls__volfill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.hls__volthumb {
+  position: absolute; left: 50%; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transform: translate(-50%, 50%); box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.hls__scrubtime {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 9;
+  background: rgba(0,0,0,0.72); color: #fff; padding: 6px 12px; border-radius: 8px;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+/* Thin seek bar pinned to the very bottom edge; thumb appears while scrubbing. */
+.hls__seek {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; z-index: 8;
+  height: 16px; margin: 0; padding: 0; background: transparent; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+.hls__seek::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--pct, 0%), rgba(255,255,255,0.32) var(--pct, 0%));
+}
+.hls__seek::-moz-range-track { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.32); }
+.hls__seek::-moz-range-progress { height: 3px; border-radius: 2px; background: var(--accent); }
+.hls__seek::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #fff;
+  margin-top: -5px; opacity: 0; transition: opacity 0.15s ease;
+}
+.hls__seek::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; opacity: 0; }
+.hls__seek--active::-webkit-slider-thumb, .hls__seek:hover::-webkit-slider-thumb { opacity: 1; }
+.hls__seek--active::-moz-range-thumb, .hls__seek:hover::-moz-range-thumb { opacity: 1; }
+.hls__seek--active::-webkit-slider-runnable-track { height: 5px; }
+.card__media--blur .hls { filter: blur(34px); transform: scale(1.1); }
 /* Tap-to-unmute pill for auto-playing videos */
 .card__mute {
   position: absolute; top: calc(58px + env(safe-area-inset-top)); right: 12px; z-index: 6;

@@ -51,7 +51,7 @@ export function PostReader({ post, onClose, onNeedAuth }: { post: FypPost; onClo
           {showVideo && (
             <div className="reader__video">
               {video.hls ? (
-                <HlsVideo src={video.hls} poster={video.poster} muted={false} autoPlay={false} controls />
+                <HlsVideo src={video.hls} poster={video.poster} native />
               ) : hero.src ? (
                 <video src={hero.src} poster={video.poster} controls playsInline />
               ) : video.status === 'loading' ? (

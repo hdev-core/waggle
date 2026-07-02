@@ -3,24 +3,26 @@ import type { FypPost } from '../lib/types'
 import { extractHero } from '../lib/post'
 import { useInView } from '../lib/useInView'
 import { useResolvedVideo } from '../lib/video'
-import { useMuted } from '../lib/muteStore'
 import { HlsVideo } from './HlsVideo'
+import { YouTubePlayer } from './YouTubePlayer'
 
 // Renders one post's hero media with TikTok-style playback:
 //  1. Lazy-mount: nothing heavy loads until the slide is ~1.5 screens away.
-//  2. Auto-play on active: when a video slide is the centered one (>=60% in
-//     view) it auto-plays muted; it unmounts as it scrolls away so only one
-//     video ever plays.
-//  3. Tap to toggle sound; a poster remains as a fallback while a stream loads
-//     or when a (synthetic) post has no real video behind it.
+//  2. Preload + auto-play: HLS videos mount while near the viewport (so playback
+//     starts instantly on swipe) but only PLAY while this is the centered/active
+//     slide; they pause + rewind when they scroll away, so only one plays.
+//  3. Custom controls (seek / speed / volume) live in the HlsVideo overlay.
 export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const [active, setActive] = useState(false)
-  const [muted, setMuted] = useMuted() // global: sound choice carries to every card
+  const [near, setNear] = useState(false)
   const hero = extractHero(post)
   const isVideo = hero.kind === 'video'
   const { hls, poster, status } = useResolvedVideo(hero)
+  const ytId = hero.embedUrl?.match(/embed\/([\w-]{11})/)?.[1]
 
+  // "active" = this is the centered slide (drives play). No rootMargin so the
+  // 0.6 ratio is measured against the real viewport.
   useEffect(() => {
     const el = ref.current
     if (!el || !isVideo) return
@@ -32,13 +34,22 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
     return () => io.disconnect()
   }, [ref, isVideo])
 
-  const playing = isVideo && active
-  const hasSound = playing && (hls || hero.embedUrl || hero.src)
+  // "near" = within a screen of the viewport (preload window). Toggles OFF when
+  // far away so the player unmounts — otherwise every scrolled-past video would
+  // keep a buffering <video>/hls.js instance alive and leak memory/bandwidth.
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !isVideo) return
+    const io = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), { rootMargin: '120% 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, isVideo])
 
-  const iframeSrc = (url: string) => {
-    const sep = url.includes('?') ? '&' : '?'
-    return `${url}${sep}autoplay=1&mute=${muted ? 1 : 0}&muted=${muted ? 1 : 0}&playsinline=1`
-  }
+  const gated = !!blurred // NSFW/muted — never autoplay behind the blur
+  const playing = isVideo && active && !gated
+  // Poster/spinner facade for non-HLS states (YouTube/mp4 before play, resolve
+  // loading/unavailable) and for gated videos. HLS/YT render their own poster.
+  const showFacade = inView && isVideo && (gated || (!hls && !ytId)) && (!playing || status === 'loading' || status === 'unavailable')
 
   return (
     <div className={`card__media ${blurred ? 'card__media--blur' : ''}`} ref={ref}>
@@ -50,9 +61,7 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         <img className="card__img" src={hero.src} alt="" decoding="async" loading="lazy" />
       )}
 
-      {/* Poster shown until the stream mounts (or as the permanent frame if the
-          video can't be resolved). */}
-      {inView && isVideo && (!playing || !hls) && (
+      {showFacade && (
         <div className="card__playbtn" aria-hidden>
           {poster && <img className="card__img" src={poster} alt="" decoding="async" />}
           {playing && status === 'loading' && <span className="card__spinner" />}
@@ -64,25 +73,19 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
         </div>
       )}
 
-      {playing && hls && <HlsVideo className="card__video" src={hls} poster={poster} muted={muted} />}
-      {playing && !hls && hero.embedUrl && (
-        <iframe
-          key={muted ? 'm' : 'u'}
-          className="card__video"
-          src={iframeSrc(hero.embedUrl)}
-          title={title}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-        />
-      )}
-      {playing && !hls && !hero.embedUrl && hero.src && (
-        <video className="card__video" src={hero.src} autoPlay playsInline muted={muted} loop controls={false} />
+      {/* HLS: mounted while near the viewport (preload), plays only when active;
+          unmounts when far so players don't accumulate. */}
+      {near && isVideo && hls && !gated && (
+        <HlsVideo className="card__video" src={hls} poster={poster} active={active} overlay />
       )}
 
-      {hasSound && (
-        <button className="card__mute" onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute' : 'Mute'}>
-          {muted ? '🔇 Tap for sound' : '🔊'}
-        </button>
+      {/* YouTube via the IFrame API — same overlay controls as HLS. */}
+      {playing && !hls && ytId && (
+        <YouTubePlayer className="card__video" videoId={ytId} poster={poster} active={active} />
+      )}
+      {/* Bare mp4 (rare on Hive) — native controls. */}
+      {playing && !hls && !ytId && hero.src && (
+        <video className="card__video" src={hero.src} autoPlay playsInline loop controls />
       )}
 
       <div className="card__scrim" />
