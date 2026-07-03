@@ -4,6 +4,7 @@ import type { FeedKind } from './lib/types'
 import { fetchProfile } from './lib/api'
 import { FeedPager } from './components/FeedPager'
 import { LoginSheet } from './components/LoginSheet'
+import { AuthPromptSheet } from './components/AuthPromptSheet'
 import { InterestPicker } from './components/InterestPicker'
 import { useSession } from './lib/session'
 
@@ -69,6 +70,9 @@ export function App() {
       )}
 
       {showLogin && <LoginSheet onClose={() => setShowLogin(false)} />}
+
+      {/* HiveAuth QR / wallet-approval overlay (driven by session.authPrompt) */}
+      <AuthPromptSheet />
 
       {showPicker && username && (
         <InterestPicker
