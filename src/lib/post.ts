@@ -111,9 +111,17 @@ export function extractHero(post: FypPost): HeroMedia {
     }
   }
   // 3Speak with no inline metadata (feed API strips it): mark for on-demand
-  // resolution of the HLS stream from the full on-chain post.
+  // resolution of the HLS stream from the full on-chain post. Resolve by the
+  // POST's own author/permlink (its metadata holds the video), NOT the 3Speak
+  // URL's video-id — those differ (e.g. body embeds ?v=user/9srtl4ft but the
+  // real post is user/reachin-364). Only fall back to the URL's ids when the
+  // embed is of another author's video.
   const ts = body.match(THREESPEAK_RE)
-  if (ts) return { kind: 'video', poster, resolve: { author: ts[1], permlink: ts[2] } }
+  if (ts) {
+    const own = ts[1].toLowerCase() === (post.author || '').toLowerCase()
+    const resolve = own ? { author: post.author, permlink: post.permlink } : { author: ts[1], permlink: ts[2] }
+    return { kind: 'video', poster, resolve }
+  }
 
   const mp4 = body.match(MP4_RE)
   if (mp4) return { kind: 'video', src: mp4[1], poster }

@@ -78,7 +78,29 @@ export function HlsVideo({
       const { default: Hls } = await import('hls.js')
       if (cancelled) return
       if (Hls.isSupported()) {
-        hls = new Hls({ maxBufferLength: 30 })
+        // Safety net: if we couldn't pick a variant and fell back to a master
+        // playlist, some 3Speak masters declare only the audio codec (no avc1),
+        // yielding sound-but-no-picture. Inject a generic H.264 codec into any
+        // video-less CODECS attr so hls.js builds the video track. No-op for
+        // variant/media playlists (they have no EXT-X-STREAM-INF).
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const Base: any = Hls.DefaultConfig.loader
+        class FixCodecsLoader extends Base {
+          load(context: any, config: any, callbacks: any) {
+            const orig = callbacks.onSuccess
+            callbacks.onSuccess = (response: any, ...rest: any[]) => {
+              if (typeof response?.data === 'string' && response.data.includes('#EXT-X-STREAM-INF')) {
+                response.data = response.data.replace(/CODECS="([^"]*)"/g, (m: string, codecs: string) =>
+                  /avc1|avc3|hvc1|hev1|vp0?9|av01/i.test(codecs) ? m : `CODECS="avc1.4d401f,${codecs}"`,
+                )
+              }
+              orig(response, ...rest)
+            }
+            super.load(context, config, callbacks)
+          }
+        }
+        /* eslint-enable @typescript-eslint/no-explicit-any */
+        hls = new Hls({ maxBufferLength: 30, pLoader: FixCodecsLoader as never })
         hls.loadSource(url)
         hls.attachMedia(video)
       } else {
