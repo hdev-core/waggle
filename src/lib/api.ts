@@ -5,7 +5,9 @@ import { SAMPLE_VIDEOS } from './sampleVideos'
 // During the beta, seed a few real, verified-streaming 3Speak videos at the top
 // of page 1 so autoplay/HLS can be exercised — the live feed's own "video" posts
 // are synthetic testapi data with no real file. Disable with VITE_SAMPLE_VIDEOS=false.
-const SHOW_SAMPLE_VIDEOS = (import.meta.env.VITE_SAMPLE_VIDEOS ?? 'true') !== 'false'
+// Off by default so the feed/Discover reflect the real ranked results. Opt in
+// with VITE_SAMPLE_VIDEOS=true only when testing the video/autoplay path.
+const SHOW_SAMPLE_VIDEOS = import.meta.env.VITE_SAMPLE_VIDEOS === 'true'
 
 function withSamples(posts: FypPost[], page: number, source: 'personalized' | 'global'): FypPost[] {
   if (!SHOW_SAMPLE_VIDEOS || page !== 1) return posts
