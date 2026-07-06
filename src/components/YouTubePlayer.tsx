@@ -50,6 +50,10 @@ export function YouTubePlayer({
   const player = useRef<any>(null)
   const scrubbing = useRef(false)
   const { muted, volume, speed } = useMediaPrefs()
+  // Latest sound prefs, readable inside the active-effect without making it a
+  // dependency (so adjusting volume mid-play doesn't restart the video).
+  const prefs = useRef({ muted, volume, speed })
+  prefs.current = { muted, volume, speed }
   const [ready, setReady] = useState(false)
   const [paused, setPaused] = useState(true)
   const [current, setCurrent] = useState(0)
@@ -122,22 +126,42 @@ export function YouTubePlayer({
     return () => window.clearInterval(id)
   }, [ready])
 
-  // Apply prefs whenever they change.
+  // Apply prefs on live change (user toggles sound/speed while watching — a
+  // gesture is present, so unmute produces sound immediately).
   useEffect(() => {
     applyPrefs(player.current)
-  }, [muted, volume, speed, ready])
+  }, [muted, volume, speed])
 
-  // Play only while active; pause + rewind otherwise.
+  // Play only while active; pause + rewind otherwise. Browsers block autoplay
+  // WITH sound, so we always start MUTED (guaranteeing playback), then restore
+  // the user's sound preference a beat later. If the page has sticky user
+  // activation (any earlier tap) the unmute produces sound; if not, the video
+  // still plays muted rather than freezing on a play button.
   useEffect(() => {
     const p = player.current
     if (!ready || !p) return
-    if (active) {
-      applyPrefs(p)
-      p.playVideo?.()
-    } else {
+    if (!active) {
       p.pauseVideo?.()
       p.seekTo?.(0, true)
+      return
     }
+    try {
+      p.setPlaybackRate?.(prefs.current.speed)
+      p.mute?.()
+      p.playVideo?.()
+    } catch {
+      /* not ready */
+    }
+    if (prefs.current.muted || prefs.current.volume === 0) return
+    const t = window.setTimeout(() => {
+      try {
+        player.current?.unMute?.()
+        player.current?.setVolume?.(Math.round(prefs.current.volume * 100))
+      } catch {
+        /* noop */
+      }
+    }, 400)
+    return () => window.clearTimeout(t)
   }, [active, ready])
 
   return (
