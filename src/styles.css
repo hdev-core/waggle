@@ -443,3 +443,12 @@ body {
   padding: 12px 14px; font-size: 14px; font-weight: 700; cursor: pointer;
   box-shadow: 0 8px 24px rgba(255,59,107,0.4);
 }
+.cta-banner--pending {
+  background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); cursor: default;
+  display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.cta-spinner {
+  width: 15px; height: 15px; border-radius: 50%; flex: none;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
