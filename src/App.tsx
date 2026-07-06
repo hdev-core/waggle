@@ -21,7 +21,9 @@ export function App() {
   // After onboarding the ranker builds the interest vector asynchronously. Poll
   // the profile so we can flip the feed to personalized the instant it's ready,
   // instead of leaving the user on the global fallthrough until a manual refresh.
-  const POLL_MS = 15000
+  // Backend delivers the first personalized feed in ~5–15s (Redis force-refresh
+  // → ranker targeted pass), so poll ~10s to catch the flip on the 1st/2nd tick.
+  const POLL_MS = 10000
   const POLL_WINDOW_MS = 5 * 60 * 1000 // stop polling ~5 min after saving
   const savedAt = username ? Number(localStorage.getItem(savedKey)) || 0 : 0
   const withinPollWindow = savedAt > 0 && Date.now() - savedAt < POLL_WINDOW_MS
