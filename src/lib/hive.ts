@@ -72,7 +72,7 @@ export class KeychainSigner implements Signer {
     if (!name) throw new Error('Enter a username')
     // Prove key ownership by signing a challenge with the posting key.
     await run((cb) =>
-      kc().requestSignBuffer(name, `Login to HiveFY @ ${name}`, 'Posting', cb, null, 'HiveFY'),
+      kc().requestSignBuffer(name, `Login to Waggle @ ${name}`, 'Posting', cb, null, 'Waggle'),
     )
     this.user = name
     return { username: name }
@@ -109,7 +109,7 @@ export class KeychainSigner implements Signer {
         'Posting',
         (r) => (r && r.success && r.result ? resolve(r.result) : reject(new Error(r?.message || r?.error || 'Signature request cancelled'))),
         null,
-        'HiveFY',
+        'Waggle',
       )
     })
   }
@@ -126,7 +126,7 @@ export class KeychainSigner implements Signer {
         permlink,
         title: '',
         body,
-        json_metadata: JSON.stringify({ app: 'hivefy/0.1' }),
+        json_metadata: JSON.stringify({ app: 'waggle/0.1' }),
       },
     ]
     return run((cb) => kc().requestBroadcast(me, [op], 'Posting', cb))
