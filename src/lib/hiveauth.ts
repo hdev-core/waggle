@@ -90,6 +90,15 @@ export class HiveAuthSigner implements Signer {
         this.prompt({ kind: 'auth', uri: this.buildUri(evt), expire: evt.expire }),
       )
       return { username: this.auth.username }
+    } catch (e) {
+      // The request most often just expires because the WALLET never completed
+      // its registration handshake with the HiveAuth server (it gets stuck on
+      // "registering account…" when its stored key doesn't match the account's
+      // on-chain key). Say so, rather than dying silently.
+      const raw = (e as { error?: string })?.error || (e as Error)?.message || String(e)
+      throw new Error(
+        `HiveAuth didn't complete (${raw}). If your wallet showed "registering account…" and then stopped, it couldn't register with the HiveAuth server — re-add the account in your wallet (check its memo key), or use Hive Keychain on desktop.`,
+      )
     } finally {
       this.prompt(null)
     }
