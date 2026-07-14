@@ -43,6 +43,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(() => localStorage.getItem(USER_KEY))
   const [signer, setSigner] = useState<Signer | null>(null)
   const [authPrompt, setAuthPrompt] = useState<AuthPrompt | null>(null)
+  // The Keychain extension injects window.hive_keychain ASYNCHRONOUSLY, so a
+  // one-shot check at mount often misses it (symptom: the Keychain button
+  // randomly doesn't appear). Poll briefly until it shows up.
+  const [keychainReady, setKeychainReady] = useState(hasKeychain)
+  useEffect(() => {
+    if (keychainReady) return
+    let tries = 0
+    const id = window.setInterval(() => {
+      if (hasKeychain()) {
+        setKeychainReady(true)
+        window.clearInterval(id)
+      } else if (++tries > 40) {
+        window.clearInterval(id) // give up after ~6s — treat as not installed
+      }
+    }, 150)
+    return () => window.clearInterval(id)
+  }, [keychainReady])
   const [voteWeight, setVoteWeightState] = useState<number>(() => {
     const v = Number(localStorage.getItem(VOTE_KEY))
     return v >= 1 && v <= 100 ? v : 100
@@ -64,7 +81,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       username,
       signer,
-      hasKeychain: hasKeychain(),
+      hasKeychain: keychainReady,
       voteWeight,
       authPrompt,
       cancelAuth: () => setAuthPrompt(null),
@@ -107,7 +124,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setAuthPrompt(null)
       },
     }),
-    [username, signer, voteWeight, authPrompt],
+    [username, signer, voteWeight, authPrompt, keychainReady],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -11,7 +11,7 @@ declare module 'hive-auth-wrapper' {
   type Cb = (evt: any) => void
   interface HAS {
     setOptions(o: { host?: string; auth_key_secret?: string }): void
-    status(): unknown
+    status(): { host: string; connected: boolean; timeout: number }
     connect(): Promise<void>
     authenticate(auth: HASAuth, appData: unknown, challengeData?: unknown, cbWait?: Cb): Promise<{ data: { token: string; expire: number } }>
     broadcast(auth: HASAuth, keyType: string, ops: unknown[], cbWait?: Cb): Promise<unknown>

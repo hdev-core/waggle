@@ -13,6 +13,11 @@ const APP_META = {
   icon: 'https://hdev-core.github.io/waggle/icon.svg',
 }
 
+// HiveAuth Service (HAS) host. Pin it explicitly so the server we talk to and
+// the one we advertise in the QR payload can never diverge.
+const HAS_HOST = import.meta.env.VITE_HAS_HOST ?? 'wss://hive-auth.arcange.eu/'
+HAS.setOptions({ host: HAS_HOST })
+
 // A pending wallet interaction the UI must surface: an `auth` prompt shows the
 // QR / deep link; a `sign` prompt tells the user to approve in their wallet.
 export interface AuthPrompt {
@@ -33,6 +38,14 @@ export interface HiveAuthSession {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Evt = any
+
+// The QR / deep-link payload the wallet scans. `host` is REQUIRED: it tells the
+// wallet which HAS server to send the approval back to. Omit it and the wallet
+// approves against its own default server, so our app never receives the ack
+// (symptom: "scanned the QR but nothing happened").
+export function buildAuthUri(account: string, uuid: string, key: string, host: string): string {
+  return 'has://auth_req/' + btoa(JSON.stringify({ account, uuid, key, host }))
+}
 
 function postingCustomJson(user: string, id: string, payload: unknown) {
   return ['custom_json', { required_auths: [], required_posting_auths: [user], id, json: JSON.stringify(payload) }]
@@ -62,8 +75,7 @@ export class HiveAuthSigner implements Signer {
   }
 
   private buildUri(evt: Evt): string {
-    const payload = { account: this.auth.username, uuid: evt.uuid, key: evt.key }
-    return 'has://auth_req/' + btoa(JSON.stringify(payload))
+    return buildAuthUri(this.auth.username, evt.uuid, evt.key, HAS.status()?.host || HAS_HOST)
   }
 
   async login(): Promise<{ username: string }> {
