@@ -23,7 +23,7 @@ type ActionKind = 'vote' | 'comment' | 'reblog' | 'follow'
 
 interface Event {
   t: 'impression' | 'open' | 'video' | 'action'
-  post_id?: number
+  post_id?: string // #12: string, id > 2^53 (never Number())
   rank?: number
   source?: Source
   algo_version?: string | null
@@ -105,7 +105,7 @@ if (ENABLED && typeof document !== 'undefined') {
 }
 
 export interface PostMeta {
-  postId?: number
+  postId?: string
   rank?: number
   source?: Source
   algoVersion?: string | null
@@ -127,7 +127,7 @@ export const telemetry = {
   open(m: PostMeta): void {
     enqueue({ t: 'open', post_id: m.postId, rank: m.rank, source: m.source, algo_version: m.algoVersion, ts: Date.now() })
   },
-  action(m: { postId?: number; kind: ActionKind }): void {
+  action(m: { postId?: string; kind: ActionKind }): void {
     enqueue({ t: 'action', post_id: m.postId, kind: m.kind, ts: Date.now() })
   },
   // test-only: inspect/reset the pending queue

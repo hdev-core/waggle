@@ -16,7 +16,9 @@ export interface FypSignals {
   boost_source?: string | null
   source?: 'personalized' | 'global'
   // Exposed for telemetry (haf_fyp #12): joinable post key + serving algo.
-  post_id?: number
+  // post_id is a STRING: the id exceeds JS's 2^53 safe-integer limit, so the API
+  // serializes it as a string to avoid precision loss (never coerce to Number).
+  post_id?: string
   algorithm_version?: string | null
 }
 
