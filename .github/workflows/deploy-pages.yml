@@ -29,6 +29,9 @@ jobs:
       VITE_FYP_BASE: ${{ vars.VITE_FYP_BASE || 'https://testapi.hivescan.info/haf-fyp-api' }}
       VITE_FYP_ADMIN_BASE: ${{ vars.VITE_FYP_ADMIN_BASE || 'https://testapi.hivescan.info/haf-fyp-admin' }}
       VITE_HIVE_RPC: ${{ vars.VITE_HIVE_RPC || 'https://api.hive.blog' }}
+      # Feed telemetry (#12) — OFF by default until the backend retention/rollup
+      # follow-up lands. Set the VITE_TELEMETRY repo variable to 'true' to enable.
+      VITE_TELEMETRY: ${{ vars.VITE_TELEMETRY || 'false' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

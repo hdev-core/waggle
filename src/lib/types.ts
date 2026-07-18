@@ -15,6 +15,9 @@ export interface FypSignals {
   community_boost_applied?: boolean
   boost_source?: string | null
   source?: 'personalized' | 'global'
+  // Exposed for telemetry (haf_fyp #12): joinable post key + serving algo.
+  post_id?: number
+  algorithm_version?: string | null
 }
 
 export interface PostJsonMetadata {

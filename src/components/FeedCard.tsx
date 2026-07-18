@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import type { FypPost } from '../lib/types'
 import { excerpt, payoutOf, displayReputation, metaTags, contentWarning } from '../lib/post'
 import { usePostActions } from '../lib/usePostActions'
+import { useImpression } from '../lib/useImpression'
+import { telemetry, type PostMeta } from '../lib/telemetry'
 import { Hero } from './Hero'
 import { CommentSheet } from './CommentSheet'
 import { PostReader } from './PostReader'
@@ -41,12 +43,21 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
   // Rail heart opens the % picker (or prompts login); double-tap quick-votes.
   const openVote = () => (signer ? setShowVote(true) : onNeedAuth())
 
+  // Telemetry (#12): impression while this card is the active slide + reader opens.
+  const cardRef = useRef<HTMLElement>(null)
+  const meta: PostMeta = { postId: post.fyp?.post_id, rank: post.fyp?.rank, source: post.fyp?.source, algoVersion: post.fyp?.algorithm_version }
+  useImpression(cardRef, meta)
+  const openReader = () => {
+    telemetry.open(meta)
+    setShowReader(true)
+  }
+
   // Blur + collapse NSFW / muted / low-rated posts until the user opts in.
   const warning = contentWarning(post)
   const gated = !!warning && !revealed
 
   return (
-    <section className="card" onDoubleClick={gated ? undefined : onLike}>
+    <section className="card" ref={cardRef} onDoubleClick={gated ? undefined : onLike}>
       <Hero post={post} title={post.title} blurred={gated} />
       {liked && !gated && <div className="card__heart">♥</div>}
 
@@ -65,8 +76,8 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
           {post.community_title && <span className="chip">{post.community_title}</span>}
           {post.fyp?.source && <span className={`chip chip--${post.fyp.source}`}>{post.fyp.source === 'personalized' ? 'For You' : 'Discover'}</span>}
         </div>
-        <h2 className="card__title" onClick={() => setShowReader(true)}>{post.title}</h2>
-        <p className="card__excerpt" onClick={() => setShowReader(true)}>
+        <h2 className="card__title" onClick={openReader}>{post.title}</h2>
+        <p className="card__excerpt" onClick={openReader}>
           {excerpt(post.body)} <span className="card__more">Read more</span>
         </p>
         <div className="card__author">

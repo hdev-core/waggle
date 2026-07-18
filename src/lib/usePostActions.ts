@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FypPost } from './types'
 import { useSession } from './session'
+import { telemetry } from './telemetry'
 
 export type Busy = null | 'vote' | 'reblog' | 'follow' | 'comment'
 
@@ -25,6 +26,7 @@ export function usePostActions(post: FypPost, onNeedAuth: () => void) {
     optimistic()
     try {
       await run()
+      telemetry.action({ postId: post.fyp?.post_id, kind })
       flash(`${kind === 'vote' ? 'Upvoted' : kind === 'reblog' ? 'Reblogged' : kind === 'follow' ? 'Following' : 'Commented'} ✓`)
     } catch (e) {
       rollback()
