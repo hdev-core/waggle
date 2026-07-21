@@ -58,7 +58,7 @@ export function FeedCard({ post, onNeedAuth }: { post: FypPost; onNeedAuth: () =
 
   return (
     <section className="card" ref={cardRef} onDoubleClick={gated ? undefined : onLike}>
-      <Hero post={post} title={post.title} blurred={gated} />
+      <Hero post={post} title={post.title} blurred={gated} meta={meta} />
       {liked && !gated && <div className="card__heart">♥</div>}
 
       {gated && (

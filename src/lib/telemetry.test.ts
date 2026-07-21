@@ -42,4 +42,24 @@ describe('telemetry — enabled', () => {
     expect(typeof q[0].ts).toBe('number')
     telemetry._reset()
   })
+
+  it('emits a rounded video sample and clamps watch/duration to 24h', async () => {
+    const { telemetry } = await import('./telemetry')
+    telemetry._reset()
+
+    telemetry.video({ postId: '9', rank: 1, source: 'personalized', algoVersion: 'v7', watchMs: 8200.4, durationMs: 30000 })
+    // A long-parked looping clip: watch_ms outruns the 24h backend cap and must
+    // be clamped (else the whole batch 422s).
+    const DAY = 24 * 60 * 60 * 1000
+    telemetry.video({ postId: '9', watchMs: DAY + 5000, durationMs: DAY + 5000 })
+
+    const q = telemetry._peek()
+    expect(q).toHaveLength(2)
+    expect(q[0]).toMatchObject({
+      t: 'video', post_id: '9', rank: 1, source: 'personalized', algo_version: 'v7',
+      watch_ms: 8200, duration_ms: 30000,
+    })
+    expect(q[1]).toMatchObject({ t: 'video', watch_ms: DAY, duration_ms: DAY })
+    telemetry._reset()
+  })
 })

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FypPost } from '../lib/types'
+import type { PostMeta } from '../lib/telemetry'
 import { extractHero, unproxyImage } from '../lib/post'
 import { useInView } from '../lib/useInView'
 import { useResolvedVideo } from '../lib/video'
@@ -12,7 +13,7 @@ import { YouTubePlayer, preloadYT } from './YouTubePlayer'
 //     starts instantly on swipe) but only PLAY while this is the centered/active
 //     slide; they pause + rewind when they scroll away, so only one plays.
 //  3. Custom controls (seek / speed / volume) live in the HlsVideo overlay.
-export function Hero({ post, title, blurred }: { post: FypPost; title: string; blurred?: boolean }) {
+export function Hero({ post, title, blurred, meta }: { post: FypPost; title: string; blurred?: boolean; meta?: PostMeta }) {
   const { ref, inView } = useInView<HTMLDivElement>()
   const [active, setActive] = useState(false)
   const [near, setNear] = useState(false)
@@ -88,13 +89,13 @@ export function Hero({ post, title, blurred }: { post: FypPost; title: string; b
       {/* HLS: mounted while near the viewport (preload), plays only when active;
           unmounts when far so players don't accumulate. */}
       {near && isVideo && hls && !gated && (
-        <HlsVideo className="card__video" src={hls} poster={poster} active={active} overlay />
+        <HlsVideo className="card__video" src={hls} poster={poster} active={active} overlay meta={meta} />
       )}
 
       {/* YouTube via the IFrame API — preloaded near the viewport, plays only
           when active; same overlay controls as HLS. */}
       {near && !hls && ytId && !gated && (
-        <YouTubePlayer className="card__video" videoId={ytId} poster={poster} active={active} />
+        <YouTubePlayer className="card__video" videoId={ytId} poster={poster} active={active} meta={meta} />
       )}
       {/* Bare mp4 (rare on Hive) — native controls. */}
       {playing && !hls && !ytId && hero.src && (

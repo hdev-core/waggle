@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMediaPrefs } from '../lib/mediaPrefs'
+import { useWatchTime } from '../lib/useWatchTime'
+import type { PostMeta } from '../lib/telemetry'
 import { VideoOverlay } from './VideoOverlay'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -40,11 +42,13 @@ export function YouTubePlayer({
   poster,
   className,
   active = true,
+  meta,
 }: {
   videoId: string
   poster?: string
   className?: string
   active?: boolean
+  meta?: PostMeta
 }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const player = useRef<any>(null)
@@ -58,6 +62,9 @@ export function YouTubePlayer({
   const [paused, setPaused] = useState(true)
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
+
+  // #12: sample real watch-time (YT's BUFFERING/PAUSED states already read as not-playing).
+  useWatchTime(!paused, duration, meta)
 
   function applyPrefs(p: any) {
     if (!p) return

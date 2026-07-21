@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMediaPrefs } from '../lib/mediaPrefs'
 import { pickVariant, fixMasterCodecs } from '../lib/hls'
+import { useWatchTime } from '../lib/useWatchTime'
+import type { PostMeta } from '../lib/telemetry'
 import { VideoOverlay } from './VideoOverlay'
 
 // Plays an HLS (.m3u8) stream — 3Speak / Hive-native video. Safari/iOS play HLS
@@ -15,6 +17,7 @@ export function HlsVideo({
   active = true,
   overlay = false,
   native = false,
+  meta,
 }: {
   src: string
   poster?: string
@@ -22,6 +25,7 @@ export function HlsVideo({
   active?: boolean
   overlay?: boolean
   native?: boolean
+  meta?: PostMeta
 }) {
   const ref = useRef<HTMLVideoElement>(null)
   const scrubbing = useRef(false)
@@ -29,6 +33,13 @@ export function HlsVideo({
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
   const [paused, setPaused] = useState(true)
+  const [waiting, setWaiting] = useState(false)
+
+  // #12: sample real watch-time (feed mode only; the reader's native player has
+  // no meta). A stalled <video> keeps paused=false (HTML5 fires waiting/stalled,
+  // not pause), so exclude buffering explicitly — otherwise rebuffering inflates
+  // watch_ms and HLS wouldn't be comparable to YouTube (which pauses on BUFFERING).
+  useWatchTime(!paused && !waiting, duration, native ? undefined : meta)
 
   useEffect(() => {
     const video = ref.current
@@ -127,6 +138,9 @@ export function HlsVideo({
         controls={native}
         onPlay={() => setPaused(false)}
         onPause={() => setPaused(true)}
+        onPlaying={() => setWaiting(false)}
+        onWaiting={() => setWaiting(true)}
+        onStalled={() => setWaiting(true)}
         onTimeUpdate={() => {
           if (!scrubbing.current && ref.current) setCurrent(ref.current.currentTime)
         }}

@@ -17,6 +17,10 @@ const USER_KEY = 'hivefy.username' // read (not owned) — non-authoritative
 const FLUSH_MS = 10_000
 const MAX_BATCH = 200 // server cap
 const FLUSH_AT = 40 // flush early once the queue reaches this
+// Mirror the backend clamp (api.py _MAX_MS = 24h). watch_ms can outrun this on a
+// long-parked looping clip; the batch is Pydantic-validated per event, so one
+// out-of-range value 422s the WHOLE batch — clamp here, never send junk.
+const MAX_MS = 24 * 60 * 60 * 1000
 
 type Source = 'personalized' | 'global'
 type ActionKind = 'vote' | 'comment' | 'reblog' | 'follow'
@@ -91,6 +95,10 @@ function scheduleFlush(): void {
 
 function enqueue(ev: Event): void {
   if (!ENABLED) return
+  // Defence-in-depth: the batch is Pydantic-validated per event, so one
+  // over-length field 422s the WHOLE batch (impressions/opens included). The
+  // source is a varchar(16), but clamp anyway to guarantee we never poison it.
+  if (ev.algo_version && ev.algo_version.length > 16) ev.algo_version = ev.algo_version.slice(0, 16)
   queue.push(ev)
   if (queue.length >= FLUSH_AT) flush()
   else scheduleFlush()
@@ -126,6 +134,21 @@ export const telemetry = {
   },
   open(m: PostMeta): void {
     enqueue({ t: 'open', post_id: m.postId, rank: m.rank, source: m.source, algo_version: m.algoVersion, ts: Date.now() })
+  },
+  // A watch-time sample for one video: watch_ms is REAL playing time (not
+  // active-slide time), duration_ms the clip length. A post can emit several
+  // samples (re-watches / tab returns); the rollup sums them (avg_watch_ms).
+  video(m: PostMeta & { watchMs: number; durationMs?: number }): void {
+    enqueue({
+      t: 'video',
+      post_id: m.postId,
+      rank: m.rank,
+      source: m.source,
+      algo_version: m.algoVersion,
+      watch_ms: Math.min(Math.round(m.watchMs), MAX_MS),
+      duration_ms: m.durationMs != null ? Math.min(Math.round(m.durationMs), MAX_MS) : undefined,
+      ts: Date.now(),
+    })
   },
   action(m: { postId?: string; kind: ActionKind }): void {
     enqueue({ t: 'action', post_id: m.postId, kind: m.kind, ts: Date.now() })
